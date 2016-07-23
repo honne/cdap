@@ -16,6 +16,7 @@ Pipeline can be started, stopped, and controlled using:
 - :ref:`CDAP CLI <cdap-cli>`
 - Command line tools, using the :ref:`Lifecycle HTTP RESTful API <http-restful-api-lifecycle-start>`
 
+
 .. _cask-hydrator-running-pipelines-within-hydrator:
 
 Running a Pipeline within Hydrator
@@ -31,15 +32,19 @@ For a real-time pipeline, you simply start or stop the pipeline.
 You can view details of a pipeline, such as its configuration, settings, stages, schemas, etc.
 
 
+Runtime Arguments
+=================
+*[To Be Completed]*
+
 
 Re-running a Pipeline
 =====================
-*[New in 3.5: To Be Completed]*
+*[To Be Completed]*
 
 
 Notifications
 =============
-To Be Completed
+*[To Be Completed]*
 
 
 Logs

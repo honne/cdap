@@ -136,10 +136,10 @@ using the tools supplied by CDAP.
 
 Plugins
 =======
-Sources, transformations (called *transforms* for short), and sinks are generically called
-*plugins*. Plugins provide a way to extend the functionality of existing artifacts. An
-application can be created with the existing plugins included with CDAP or, if a user
-wishes, they can write a plugin to add their own capability.
+Sources, transformations (called *transforms* for short), and sinks are generically
+referred to as a *plugin*. Plugins provide a way to extend the functionality of existing
+artifacts. An application can be created with the existing plugins included with CDAP or,
+if a user wishes, they can write a plugin to add their own capability.
 
 Some plugins |---| such as the *JavaScript*, *Python Evaluator*, and *Validator*
 transforms |---| are designed to be customized by end-users with their own code from
@@ -149,7 +149,7 @@ your own custom validation function.
 
 Types of Plugins
 ----------------
-These are the basic plugin types in |cask-hydrator-version|:
+These are the basic *plugin types* in |cask-hydrator-version|:
 
 - Action
 - Aggregator
@@ -157,7 +157,7 @@ These are the basic plugin types in |cask-hydrator-version|:
 - Batch Source
 - Compute
 - Model
-- Post-run (called after the pipeline has run)
+- Post-run Action (called after the pipeline has run)
 - Real-time Sink
 - Real-time Source
 - Shared
@@ -172,11 +172,11 @@ Transformations can use validators to test data and check that it follows user-s
 rules. Other plugin types may be restricted as to which plugin (and artifact) that they
 work with, depending on the particular functionality they provide.
 
-For instance, certain model (*NaiveBayesTrainer*) and compute (*NaiveBayesClassifier*) plugins
-only work with batch pipelines.
+For instance, certain *model* (the *NaiveBayesTrainer*) and *compute* (the
+*NaiveBayesClassifier*) plugins only work with batch pipelines.
 
-Action plugins (supported only in pipelines based on the ``cdap-data-pipeline`` artifact) can
-be added to run either before a source or after a sink. A "post-run" plugin can be
+*Action* plugins (supported only in pipelines based on the ``cdap-data-pipeline`` artifact) can
+be added to run either before a source or after a sink. A "post-run" action plugin can be
 specified that runs after the entire pipeline has run.
 
 A reference lists and describes all :ref:`plugins included with CDAP <cask-hydrator-plugins>`.
@@ -189,7 +189,7 @@ Details on plugin development are covered in :ref:`cask-hydrator-developing-plug
 Plugin Templates
 ----------------
 Within :ref:`Hydrator Studio <cask-hydrator-introduction_hydrator_studio>`, you can create
-plugin templates: customized versions of a plugin that are reusable, and can contain
+*plugin templates:* customized versions of a plugin that are reusable, and can contain
 pre-configured settings.
 
 Setting can be locked so that they cannot be altered when they are eventually used.
@@ -198,7 +198,7 @@ Once a plugin template has been created, it can be edited and deleted at a later
 
 Changes to a plugin template do not affect any pipelines created using that template, as
 those pipelines are created from the artifacts as specified in the plugin template at the
-time of creation.
+time of creation of the pipeline.
 
 
 Properties
@@ -234,8 +234,8 @@ to a table (a sink). The name of the database source and name of the table sink 
 change from run to run and you need to specify those values as input before starting a
 run.
 
-Or, you might want to create a pipeline with a particular action at the start of the run.
-The action might, based on some logic, provide the name of the database to use as a source
+You might want to create a pipeline with a particular action at the start of the run.
+The action could, based on some logic, provide the name of the database to use as a source
 and the name of the table to write as a sink. The next stage in the pipeline might use
 this information to read and write from appropriate sources and sinks.
 
@@ -287,8 +287,9 @@ Hydrator Studio Tips
   button (an *X* in the upper-right corner), the *escape* key on your keyboard, or clicking
   outside the dialog box.
   
-- **To edit a connection** made from one node to another node, you can remove the
-  connection by grabbing the end with the arrow symbol and dragging it off the target node.
+- To **edit a connection** made from one node to another node, you can remove the
+  connection by clicking the end with the arrow symbol (click on the white dot) and dragging
+  it off of the target node.
 
 - All **pipelines must have unique names**, and a pipeline **cannot be saved over an existing
   pipeline** of the same name. Instead, increment the name (from *Demo* to *Demo-1*) with

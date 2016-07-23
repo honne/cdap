@@ -201,7 +201,7 @@ template being used to create the pipeline.
 Currently, post-run plugins are only available when using the ``cdap-data-pipeline``
 application template.
 
-Available post-run plugins are documented in the :ref:`reference of plugins
+Available post-run plugins are documented in the :ref:`Plugin Reference
 <cask-hydrator-plugins-post-run-plugins>`.
 
 Real-time Pipelines
@@ -353,8 +353,8 @@ Using either method, published pipelines are visible within both CDAP and Hydrat
 can be cloned and edited using Hydrator Studio.
 
 
-Using and Re-using Existing Pipelines
-=====================================
+Re-using Existing Pipelines
+===========================
 Existing pipelines can be used to create new pipelines by:
 
 - cloning an already-published pipeline and saving the resulting draft with a new name; or
@@ -363,14 +363,17 @@ Existing pipelines can be used to create new pipelines by:
 
 Cloning
 -------
-Any existing pipeline that has been published, can be *cloned.* This 
-creates an in-memory copy of the pipeline with the same name and opens it within Hydrator Studio.
+Any existing pipeline that has been published, can be *cloned.* This creates an in-memory
+copy of the pipeline with the same name and opens it within Hydrator Studio.
 
-At this point, you can rename the pipeline to a unique name and then save it as draft.
+At this point, you can rename the pipeline to a unique name and then save it as draft or
+publish it as a new pipeline. As you cannot save over an existing pipeline, all new
+pipelines need a unique name; a common practice is to increment the names, from *Demo-1*
+to *Demo-2* with each new clone. 
 
 
-Pipeline Drafts *(Hydrator Studio)*
------------------------------------
+Pipeline Drafts
+---------------
 From within *Hydrator Studio*, you can save a pipeline you are working on at any time as
 a *draft*. The pipeline configuration is saved, and you can resume editing later.
 
@@ -395,9 +398,8 @@ must be unique, though you can have a draft that is the same name as a published
 To successfully publish such a draft, you will need to re-name it to a unique name.
 
 
-Creating Plugin Templates
--------------------------
-
+Plugin Templates
+----------------
 From within Hydrator Studio, you can create a **plugin template,** a variation
 of a plugin that you can configure with particular settings for re-use. 
 
@@ -478,8 +480,8 @@ These are the available templates:
   - **Stream to HBase:** Periodically ingest from a stream into an HBase table
 
 
-Importing *(Hydrator Studio)*
------------------------------
+Importing
+---------
 From within Hydrator Studio, you can import a pipeline configuration JSON file to create a
 new pipeline using the *Import Pipeline* button:
 
@@ -500,7 +502,7 @@ required. It may be created from an existing pipeline by exporting its configura
 
 
 Exporting
------------------------------
+---------
 There are two ways you can export a pipeline configuration file:
 
 1. From with Hydrator Studio; and
