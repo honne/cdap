@@ -279,7 +279,6 @@ section on :ref:`developing pipelines: creating a real-time pipeline
 <hydrator-developing-pipelines-creating-real-time>`.
 
 
-
 Common Settings
 ===============
 These settings can be used in both batch and real-time pipelines.
@@ -307,21 +306,29 @@ and in the preferences (or the runtime arguments) set a key-value pair such as::
 
   source-stream-name: myDemoStream
   
-Macros can be referential. You might have an server that refers to a hostname and port,
-and supply these runtime arguments::
+Macros can be referential, up to ten levels deep. 
+
+You might have an server that refers to a hostname and port, and supply these runtime
+arguments, one of which is a definition of a macro that uses other macros::
  
-  server-address: ${hostname}:${port}
   hostname: my-demo-host.example.com
   port: 9991
+  server-address: ${hostname}:${port}
  
-In a pipeline configuration, you could use an expression with::
+In a pipeline configuration, you could use an expression such as::
 
   server-address: ${server-address}
 
 expecting that it would be replaced with::
 
   my-demo-host.example.com:9991
+
+The order of precedence (from highest to lowest) for resolving macros is:
+
+  workflow token | runtime arguments | preference
   
+This order is used so that the most volatile source (the workflow tokens) takes precedence.
+
 Information on setting preferences and runtime arguments is in the :ref:`CDAP
 Administration Manual, Preferences <preferences>`. These can be set with the HTTP
 :ref:`Lifecycle <http-restful-api-lifecycle-start>` and :ref:`Preferences
