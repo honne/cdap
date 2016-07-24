@@ -308,18 +308,15 @@ and in the preferences (or the runtime arguments) set a key-value pair such as::
   source-stream-name: myDemoStream
   
 Macros can be referential. You might have an server that refers to a hostname and port,
-and supply this preference::
-
- server-address: ${hostname}:${port}
-
-and these runtime arguments::
+and supply these runtime arguments::
  
- hostname: my-demo-host.example.com
- port: 9991
+  server-address: ${hostname}:${port}
+  hostname: my-demo-host.example.com
+  port: 9991
  
 In a pipeline configuration, you could use an expression with::
 
-  ${server-address}
+  server-address: ${server-address}
 
 expecting that it would be replaced with::
 
