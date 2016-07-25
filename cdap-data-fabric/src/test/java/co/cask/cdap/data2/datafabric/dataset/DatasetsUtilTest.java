@@ -37,11 +37,17 @@ import co.cask.cdap.data2.metadata.lineage.LineageDataset;
 import co.cask.cdap.data2.registry.UsageDataset;
 import co.cask.cdap.proto.Id;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Map;
 
 public class DatasetsUtilTest extends DatasetServiceTestBase {
+
+  @BeforeClass
+  public static void setup() throws Exception {
+    DatasetServiceTestBase.initialize();
+  }
 
   @Test
   public void testFixProperties() throws DatasetManagementException, UnsupportedTypeException {
@@ -68,8 +74,7 @@ public class DatasetsUtilTest extends DatasetServiceTestBase {
             DatasetProperties.EMPTY);
     testFix(LineageDataset.class.getName(),
             DatasetProperties.builder().add(Table.PROPERTY_TTL, 1000).build());
-    testFix(UsageDataset.class.getSimpleName(),
-            DatasetProperties.EMPTY);
+    testFix(UsageDataset.class.getSimpleName(), DatasetProperties.EMPTY);
 
     testFix("table",
             DatasetProperties.builder().add(Table.PROPERTY_COLUMN_FAMILY, "fam").build());

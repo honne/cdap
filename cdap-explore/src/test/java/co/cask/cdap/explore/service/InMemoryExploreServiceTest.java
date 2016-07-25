@@ -21,7 +21,7 @@ import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.guice.ConfigModule;
 import co.cask.cdap.common.guice.DiscoveryRuntimeModule;
 import co.cask.cdap.common.guice.IOModule;
-import co.cask.cdap.common.guice.LocationUnitTestModule;
+import co.cask.cdap.common.guice.NonCustomLocationUnitTestModule;
 import co.cask.cdap.common.namespace.NamespaceAdmin;
 import co.cask.cdap.common.namespace.guice.NamespaceClientRuntimeModule;
 import co.cask.cdap.data.runtime.DataFabricModules;
@@ -31,6 +31,8 @@ import co.cask.cdap.data.stream.StreamAdminModules;
 import co.cask.cdap.data.view.ViewAdminModules;
 import co.cask.cdap.data2.datafabric.dataset.service.DatasetService;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.DatasetOpExecutor;
+import co.cask.cdap.data2.security.UGIProvider;
+import co.cask.cdap.data2.security.UnsupportedUGIProvider;
 import co.cask.cdap.explore.guice.ExploreClientModule;
 import co.cask.cdap.explore.guice.ExploreRuntimeModule;
 import co.cask.cdap.metrics.guice.MetricsClientRuntimeModule;
@@ -42,6 +44,9 @@ import co.cask.cdap.proto.NamespaceMeta;
 import co.cask.cdap.proto.QueryHandle;
 import co.cask.cdap.proto.QueryResult;
 import co.cask.cdap.proto.QueryStatus;
+import co.cask.cdap.security.auth.context.AuthenticationContextModules;
+import co.cask.cdap.security.authorization.AuthorizationEnforcementModule;
+import co.cask.cdap.security.authorization.AuthorizationTestModule;
 import co.cask.cdap.store.guice.NamespaceStoreModule;
 import co.cask.cdap.test.SlowTests;
 import co.cask.tephra.TransactionManager;
@@ -89,7 +94,7 @@ public class InMemoryExploreServiceTest {
         new ConfigModule(configuration, hConf),
         new IOModule(),
         new DiscoveryRuntimeModule().getInMemoryModules(),
-        new LocationUnitTestModule().getModule(),
+        new NonCustomLocationUnitTestModule().getModule(),
         new DataFabricModules().getInMemoryModules(),
         new DataSetsModules().getStandaloneModules(),
         new DataSetServiceModules().getInMemoryModules(),
@@ -100,10 +105,14 @@ public class InMemoryExploreServiceTest {
         new StreamAdminModules().getInMemoryModules(),
         new NamespaceClientRuntimeModule().getInMemoryModules(),
         new NamespaceStoreModule().getStandaloneModules(),
+        new AuthorizationTestModule(),
+        new AuthorizationEnforcementModule().getInMemoryModules(),
+        new AuthenticationContextModules().getMasterModule(),
         new AbstractModule() {
           @Override
           protected void configure() {
             bind(NotificationFeedManager.class).to(NoOpNotificationFeedManager.class);
+            bind(UGIProvider.class).to(UnsupportedUGIProvider.class);
           }
         });
     transactionManager = injector.getInstance(TransactionManager.class);
@@ -132,9 +141,10 @@ public class InMemoryExploreServiceTest {
   @Test
   public void testHiveIntegration() throws Exception {
     String otherNamespace = "otherNamespace";
-    namespaceAdmin.create(new NamespaceMeta.Builder().setName(otherNamespace).build());
+    NamespaceMeta namespaceMeta = new NamespaceMeta.Builder().setName(otherNamespace).build();
+    namespaceAdmin.create(namespaceMeta);
     namespaceAdmin.create(new NamespaceMeta.Builder().setName(Id.Namespace.DEFAULT).build());
-    waitForCompletionStatus(exploreService.createNamespace(Id.Namespace.from(otherNamespace)));
+    waitForCompletionStatus(exploreService.createNamespace(namespaceMeta));
 
     runCleanup(ImmutableList.of(Id.Namespace.DEFAULT.getId(), otherNamespace));
 

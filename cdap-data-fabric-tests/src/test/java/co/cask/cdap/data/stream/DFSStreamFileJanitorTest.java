@@ -27,6 +27,7 @@ import co.cask.cdap.common.namespace.InMemoryNamespaceClient;
 import co.cask.cdap.common.namespace.NamespaceAdmin;
 import co.cask.cdap.common.namespace.NamespaceQueryAdmin;
 import co.cask.cdap.common.namespace.NamespacedLocationFactory;
+import co.cask.cdap.common.namespace.SimpleNamespaceQueryAdmin;
 import co.cask.cdap.data.file.FileWriter;
 import co.cask.cdap.data.runtime.DataFabricModules;
 import co.cask.cdap.data.runtime.DataSetsModules;
@@ -37,13 +38,15 @@ import co.cask.cdap.data.view.ViewAdminModules;
 import co.cask.cdap.data2.dataset2.InMemoryNamespaceStore;
 import co.cask.cdap.data2.metadata.store.MetadataStore;
 import co.cask.cdap.data2.metadata.store.NoOpMetadataStore;
+import co.cask.cdap.data2.security.RemoteUGIProvider;
+import co.cask.cdap.data2.security.UGIProvider;
 import co.cask.cdap.data2.transaction.stream.StreamAdmin;
 import co.cask.cdap.data2.transaction.stream.StreamConfig;
-import co.cask.cdap.data2.util.hbase.SimpleNamespaceQueryAdmin;
 import co.cask.cdap.explore.guice.ExploreClientModule;
 import co.cask.cdap.notifications.feeds.NotificationFeedManager;
 import co.cask.cdap.notifications.feeds.service.NoOpNotificationFeedManager;
 import co.cask.cdap.proto.Id;
+import co.cask.cdap.security.auth.context.AuthenticationContextModules;
 import co.cask.cdap.store.NamespaceStore;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -95,6 +98,7 @@ public class DFSStreamFileJanitorTest extends StreamFileJanitorTestBase {
           bind(NamespacedLocationFactory.class).toInstance(nlf);
           bind(NamespaceAdmin.class).toInstance(namespaceAdmin);
           bind(NamespaceQueryAdmin.class).to(SimpleNamespaceQueryAdmin.class);
+          bind(UGIProvider.class).to(RemoteUGIProvider.class);
         }
       },
       new TransactionMetricsModule(),
@@ -124,7 +128,8 @@ public class DFSStreamFileJanitorTest extends StreamFileJanitorTestBase {
           bind(NotificationFeedManager.class).to(NoOpNotificationFeedManager.class);
           bind(NamespaceStore.class).to(InMemoryNamespaceStore.class);
         }
-      }
+      },
+      new AuthenticationContextModules().getMasterModule()
     );
 
     locationFactory = injector.getInstance(LocationFactory.class);

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2015 Cask Data, Inc.
+ * Copyright © 2014-2016 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -29,18 +29,24 @@ import co.cask.cdap.common.namespace.guice.NamespaceClientRuntimeModule;
 import co.cask.cdap.data.runtime.DataFabricModules;
 import co.cask.cdap.data.runtime.DataSetsModules;
 import co.cask.cdap.data2.audit.AuditModule;
+import co.cask.cdap.data2.security.RemoteUGIProvider;
+import co.cask.cdap.data2.security.UGIProvider;
 import co.cask.cdap.logging.LoggingConfiguration;
 import co.cask.cdap.logging.guice.LogSaverServiceModule;
 import co.cask.cdap.logging.guice.LoggingModules;
 import co.cask.cdap.logging.save.KafkaLogSaverService;
 import co.cask.cdap.logging.service.LogSaverStatusService;
 import co.cask.cdap.metrics.guice.MetricsClientRuntimeModule;
+import co.cask.cdap.security.auth.context.AuthenticationContextModules;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Scopes;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -179,7 +185,8 @@ public final class LogSaverTwillRunnable extends AbstractTwillRunnable {
     completion.set(null);
   }
 
-  private static Injector createGuiceInjector(CConfiguration cConf, Configuration hConf) {
+  @VisibleForTesting
+  static Injector createGuiceInjector(CConfiguration cConf, Configuration hConf) {
     return Guice.createInjector(
       new ConfigModule(cConf, hConf),
       new IOModule(),
@@ -193,7 +200,13 @@ public final class LogSaverTwillRunnable extends AbstractTwillRunnable {
       new DataSetsModules().getDistributedModules(),
       new LogSaverServiceModule(),
       new LoggingModules().getDistributedModules(),
-      new AuditModule().getDistributedModules()
-    );
+      new AuditModule().getDistributedModules(),
+      new AuthenticationContextModules().getMasterModule(),
+      new AbstractModule() {
+        @Override
+        protected void configure() {
+          bind(UGIProvider.class).to(RemoteUGIProvider.class).in(Scopes.SINGLETON);
+        }
+      });
   }
 }

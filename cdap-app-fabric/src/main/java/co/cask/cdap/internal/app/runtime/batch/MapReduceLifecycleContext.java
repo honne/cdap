@@ -34,6 +34,8 @@ import co.cask.cdap.api.mapreduce.MapReduceContext;
 import co.cask.cdap.api.mapreduce.MapReduceSpecification;
 import co.cask.cdap.api.mapreduce.MapReduceTaskContext;
 import co.cask.cdap.api.plugin.PluginProperties;
+import co.cask.cdap.api.security.store.SecureStoreData;
+import co.cask.cdap.api.security.store.SecureStoreMetadata;
 import co.cask.cdap.api.workflow.WorkflowInfo;
 import co.cask.cdap.api.workflow.WorkflowToken;
 import org.apache.twill.api.RunId;
@@ -300,5 +302,15 @@ public class MapReduceLifecycleContext<KEY, VALUE> implements MapReduceTaskConte
   @Override
   public Admin getAdmin() {
     return delegate.getAdmin();
+  }
+
+  @Override
+  public List<SecureStoreMetadata> listSecureData(String namespace) throws IOException {
+    return delegate.listSecureData(namespace);
+  }
+
+  @Override
+  public SecureStoreData getSecureData(String namespace, String name) throws IOException {
+    return delegate.getSecureData(namespace, name);
   }
 }

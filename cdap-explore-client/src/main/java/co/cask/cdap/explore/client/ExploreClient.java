@@ -17,9 +17,11 @@
 package co.cask.cdap.explore.client;
 
 import co.cask.cdap.api.data.format.FormatSpecification;
+import co.cask.cdap.api.dataset.DatasetSpecification;
 import co.cask.cdap.api.dataset.lib.PartitionKey;
 import co.cask.cdap.explore.service.MetaDataInfo;
 import co.cask.cdap.proto.Id;
+import co.cask.cdap.proto.NamespaceMeta;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.Closeable;
@@ -39,16 +41,40 @@ public interface ExploreClient extends Closeable {
   /**
    * Enables ad-hoc exploration of the given {@link co.cask.cdap.api.data.batch.RecordScannable}.
    *
-   * @param datasetInstance dataset instance id.
+   * @param datasetInstance dataset instance id
    * @return a {@code Future} object that can either successfully complete, or enter a failed state depending on
    *         the success of the enable operation.
    */
   ListenableFuture<Void> enableExploreDataset(Id.DatasetInstance datasetInstance);
 
   /**
+   * Enables ad-hoc exploration of the given {@link co.cask.cdap.api.data.batch.RecordScannable}.
+   *
+   * @param datasetInstance dataset instance id
+   * @param spec the dataset specification of the dataset
+   *
+   * @return a {@code Future} object that can either successfully complete, or enter a failed state depending on
+   *         the success of the enable operation.
+   */
+  ListenableFuture<Void> enableExploreDataset(Id.DatasetInstance datasetInstance, DatasetSpecification spec);
+
+  /**
+   * Updates ad-hoc exploration of the given {@link co.cask.cdap.api.data.batch.RecordScannable}.
+   *
+   * @param datasetInstance dataset instance id
+   * @param oldSpec the dataset specification from before the update
+   * @param newSpec the dataset specification after the update
+   * @return a {@code Future} object that can either successfully complete, or enter a failed state depending on
+   *         the success of the update operation.
+   */
+  ListenableFuture<Void> updateExploreDataset(Id.DatasetInstance datasetInstance,
+                                              DatasetSpecification oldSpec,
+                                              DatasetSpecification newSpec);
+
+  /**
    * Disable ad-hoc exploration of the given {@link co.cask.cdap.api.data.batch.RecordScannable}.
    *
-   * @param datasetInstance dataset instance id.
+   * @param datasetInstance dataset instance id
    * @return a {@code Future} object that can either successfully complete, or enter a failed state depending on
    *         the success of the disable operation.
    */
@@ -218,10 +244,10 @@ public interface ExploreClient extends Closeable {
   /**
    * Creates a namespace in Explore.
    *
-   * @param namespace namespace to create.
+   * @param namespaceMeta namespace meta of the namespace to create.
    * @return {@link ListenableFuture} eventually creating the namespace (database in Hive).
    */
-  ListenableFuture<ExploreExecutionResult> addNamespace(Id.Namespace namespace);
+  ListenableFuture<ExploreExecutionResult> addNamespace(NamespaceMeta namespaceMeta);
 
   /**
    * Deletes a namespace in Explore.

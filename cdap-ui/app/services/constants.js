@@ -39,7 +39,8 @@ angular.module(PKG.name + '.services')
         'batchaggregator': 'batchaggregator',
         'sparksink': 'sparksink',
         'sparkcompute': 'sparkcompute',
-        'batchjoiner': 'batchjoiner'
+        'batchjoiner': 'batchjoiner',
+        'action': 'action'
       },
       'post-run-actions': {
         'email': 'Send Email',
@@ -56,12 +57,13 @@ angular.module(PKG.name + '.services')
       'transform': 'transform',
       'sparksink': 'sink',
       'sparkcompute': 'transform',
-      'batchjoiner': 'transform'
+      'batchjoiner': 'transform',
+      'action': 'action'
     },
 
     artifactConvert: {
-      'cdap-etl-batch': 'ETL Batch',
-      'cdap-etl-realtime': 'ETL Realtime',
+      'cdap-etl-batch': 'Batch (Deprecated)',
+      'cdap-etl-realtime': 'Realtime',
       'cdap-data-pipeline': 'Data Pipeline'
     },
 

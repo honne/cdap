@@ -25,6 +25,8 @@ import co.cask.cdap.api.dataset.module.DatasetModule;
 import co.cask.cdap.api.metrics.MetricStore;
 import co.cask.cdap.api.metrics.MetricsCollectionService;
 import co.cask.cdap.api.plugin.PluginClass;
+import co.cask.cdap.api.security.store.SecureStore;
+import co.cask.cdap.api.security.store.SecureStoreManager;
 import co.cask.cdap.app.guice.AppFabricServiceRuntimeModule;
 import co.cask.cdap.app.guice.AuthorizationModule;
 import co.cask.cdap.app.guice.InMemoryProgramRunnerModule;
@@ -85,6 +87,7 @@ import co.cask.cdap.proto.id.InstanceId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
+import co.cask.cdap.security.authorization.AuthorizationEnforcementModule;
 import co.cask.cdap.security.authorization.AuthorizerInstantiator;
 import co.cask.cdap.security.authorization.InvalidAuthorizerException;
 import co.cask.cdap.security.spi.authentication.SecurityRequestContext;
@@ -170,6 +173,8 @@ public class TestBase {
   private static TestManager testManager;
   private static NamespaceAdmin namespaceAdmin;
   private static AuthorizerInstantiator authorizerInstantiator;
+  private static SecureStore secureStore;
+  private static SecureStoreManager secureStoreManager;
 
   // This list is to record ApplicationManager create inside @Test method
   private static final List<ApplicationManager> applicationManagers = new ArrayList<>();
@@ -237,6 +242,7 @@ public class TestBase {
       new NotificationServiceRuntimeModule().getInMemoryModules(),
       new NamespaceStoreModule().getStandaloneModules(),
       new AuthorizationModule(),
+      new AuthorizationEnforcementModule().getInMemoryModules(),
       new AbstractModule() {
         @Override
         @SuppressWarnings("deprecation")
@@ -277,12 +283,17 @@ public class TestBase {
     authorizerInstantiator = injector.getInstance(AuthorizerInstantiator.class);
     // This is needed so the logged-in user can successfully create the default namespace
     if (cConf.getBoolean(Constants.Security.Authorization.ENABLED)) {
+      String user = System.getProperty("user.name");
+      SecurityRequestContext.setUserId(user);
       InstanceId instance = new InstanceId(cConf.get(Constants.INSTANCE_NAME));
-      Principal principal = new Principal(SecurityRequestContext.getUserId(), Principal.PrincipalType.USER);
+      Principal principal = new Principal(user, Principal.PrincipalType.USER);
       authorizerInstantiator.get().grant(instance, principal, ImmutableSet.of(Action.ADMIN));
+      authorizerInstantiator.get().grant(NamespaceId.DEFAULT, principal, ImmutableSet.of(Action.ADMIN));
     }
     namespaceAdmin = injector.getInstance(NamespaceAdmin.class);
     namespaceAdmin.create(NamespaceMeta.DEFAULT);
+    secureStore = injector.getInstance(SecureStore.class);
+    secureStoreManager = injector.getInstance(SecureStoreManager.class);
   }
 
   private static TestManager getTestManager() {
@@ -391,6 +402,13 @@ public class TestBase {
   public static void finish() throws Exception {
     if (--startCount != 0) {
       return;
+    }
+
+    if (cConf.getBoolean(Constants.Security.Authorization.ENABLED)) {
+      InstanceId instance = new InstanceId(cConf.get(Constants.INSTANCE_NAME));
+      Principal principal = new Principal(System.getProperty("user.name"), Principal.PrincipalType.USER);
+      authorizerInstantiator.get().grant(instance, principal, ImmutableSet.of(Action.ADMIN));
+      authorizerInstantiator.get().grant(NamespaceId.DEFAULT, principal, ImmutableSet.of(Action.ADMIN));
     }
 
     namespaceAdmin.delete(Id.Namespace.DEFAULT);
@@ -901,6 +919,20 @@ public class TestBase {
    */
   protected static NamespaceAdmin getNamespaceAdmin() {
     return namespaceAdmin;
+  }
+
+  /**
+   * Returns a {@link SecureStore} to interact with secure storage.
+   */
+  protected static SecureStore getSecureStore() {
+    return secureStore;
+  }
+
+  /**
+   * Returns a {@link SecureStoreManager} to interact with secure storage.
+   */
+  protected static SecureStoreManager getSecureStoreManager() {
+    return secureStoreManager;
   }
 
   /**

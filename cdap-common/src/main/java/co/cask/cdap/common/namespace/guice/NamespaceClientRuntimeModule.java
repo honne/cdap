@@ -16,11 +16,11 @@
 
 package co.cask.cdap.common.namespace.guice;
 
-import co.cask.cdap.common.namespace.DiscoveryNamespaceClient;
 import co.cask.cdap.common.namespace.InMemoryNamespaceClient;
 import co.cask.cdap.common.namespace.LocalNamespaceClient;
 import co.cask.cdap.common.namespace.NamespaceAdmin;
 import co.cask.cdap.common.namespace.NamespaceQueryAdmin;
+import co.cask.cdap.common.namespace.RemoteNamespaceQueryClient;
 import co.cask.cdap.common.runtime.RuntimeModule;
 import com.google.inject.AbstractModule;
 import com.google.inject.Module;
@@ -37,9 +37,9 @@ public class NamespaceClientRuntimeModule extends RuntimeModule {
     return new AbstractModule() {
       @Override
       protected void configure() {
-        bind(InMemoryNamespaceClient.class).in(Singleton.class);
-        bind(NamespaceAdmin.class).to(InMemoryNamespaceClient.class);
-        bind(NamespaceQueryAdmin.class).to(InMemoryNamespaceClient.class);
+        InMemoryNamespaceClient namespaceClient = new InMemoryNamespaceClient();
+        bind(NamespaceAdmin.class).toInstance(namespaceClient);
+        bind(NamespaceQueryAdmin.class).toInstance(namespaceClient);
       }
     };
   }
@@ -61,9 +61,7 @@ public class NamespaceClientRuntimeModule extends RuntimeModule {
     return new AbstractModule() {
       @Override
       protected void configure() {
-        bind(DiscoveryNamespaceClient.class).in(Singleton.class);
-        bind(NamespaceAdmin.class).to(DiscoveryNamespaceClient.class);
-        bind(NamespaceQueryAdmin.class).to(DiscoveryNamespaceClient.class);
+        bind(NamespaceQueryAdmin.class).to(RemoteNamespaceQueryClient.class);
       }
     };
   }

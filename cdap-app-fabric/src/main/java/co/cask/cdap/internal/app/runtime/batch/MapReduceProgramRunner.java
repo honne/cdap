@@ -20,6 +20,8 @@ import co.cask.cdap.api.app.ApplicationSpecification;
 import co.cask.cdap.api.mapreduce.MapReduce;
 import co.cask.cdap.api.mapreduce.MapReduceSpecification;
 import co.cask.cdap.api.metrics.MetricsCollectionService;
+import co.cask.cdap.api.security.store.SecureStore;
+import co.cask.cdap.api.security.store.SecureStoreManager;
 import co.cask.cdap.app.program.Program;
 import co.cask.cdap.app.runtime.Arguments;
 import co.cask.cdap.app.runtime.ProgramController;
@@ -33,6 +35,7 @@ import co.cask.cdap.common.lang.PropertyFieldSetter;
 import co.cask.cdap.common.logging.LoggingContextAccessor;
 import co.cask.cdap.common.logging.common.LogWriter;
 import co.cask.cdap.common.logging.logback.CAppender;
+import co.cask.cdap.common.namespace.NamespacedLocationFactory;
 import co.cask.cdap.data2.dataset2.DatasetFramework;
 import co.cask.cdap.data2.metadata.writer.ProgramContextAware;
 import co.cask.cdap.data2.transaction.stream.StreamAdmin;
@@ -84,21 +87,24 @@ public class MapReduceProgramRunner extends AbstractProgramRunnerWithPlugin {
   private final StreamAdmin streamAdmin;
   private final CConfiguration cConf;
   private final Configuration hConf;
-  private final LocationFactory locationFactory;
+  private final NamespacedLocationFactory locationFactory;
   private final MetricsCollectionService metricsCollectionService;
   private final DatasetFramework datasetFramework;
   private final RuntimeStore runtimeStore;
   private final TransactionSystemClient txSystemClient;
   private final DiscoveryServiceClient discoveryServiceClient;
+  private final SecureStore secureStore;
+  private final SecureStoreManager secureStoreManager;
 
   @Inject
   public MapReduceProgramRunner(Injector injector, CConfiguration cConf, Configuration hConf,
-                                LocationFactory locationFactory,
+                                NamespacedLocationFactory locationFactory,
                                 StreamAdmin streamAdmin,
                                 DatasetFramework datasetFramework,
                                 TransactionSystemClient txSystemClient,
                                 MetricsCollectionService metricsCollectionService,
-                                DiscoveryServiceClient discoveryServiceClient, RuntimeStore runtimeStore) {
+                                DiscoveryServiceClient discoveryServiceClient, RuntimeStore runtimeStore,
+                                SecureStore secureStore, SecureStoreManager secureStoreManager) {
     super(cConf);
     this.injector = injector;
     this.cConf = cConf;
@@ -110,6 +116,8 @@ public class MapReduceProgramRunner extends AbstractProgramRunnerWithPlugin {
     this.txSystemClient = txSystemClient;
     this.discoveryServiceClient = discoveryServiceClient;
     this.runtimeStore = runtimeStore;
+    this.secureStore = secureStore;
+    this.secureStoreManager = secureStoreManager;
   }
 
   @Inject (optional = true)
@@ -167,7 +175,7 @@ public class MapReduceProgramRunner extends AbstractProgramRunnerWithPlugin {
         new BasicMapReduceContext(program, options, spec,
                                   workflowInfo, discoveryServiceClient,
                                   metricsCollectionService, txSystemClient, programDatasetFramework, streamAdmin,
-                                  getPluginArchive(options), pluginInstantiator);
+                                  getPluginArchive(options), pluginInstantiator, secureStore, secureStoreManager);
 
       Reflections.visit(mapReduce, mapReduce.getClass(),
                         new PropertyFieldSetter(context.getSpecification().getProperties()),

@@ -49,6 +49,7 @@ import co.cask.cdap.explore.executor.ExploreExecutorService;
 import co.cask.cdap.explore.guice.ExploreClientModule;
 import co.cask.cdap.explore.guice.ExploreRuntimeModule;
 import co.cask.cdap.explore.service.ExploreServiceUtils;
+import co.cask.cdap.gateway.handlers.meta.RemoteSystemOperationsService;
 import co.cask.cdap.gateway.handlers.meta.RemoteSystemOperationsServiceModule;
 import co.cask.cdap.gateway.router.NettyRouter;
 import co.cask.cdap.gateway.router.RouterModules;
@@ -63,6 +64,7 @@ import co.cask.cdap.metrics.guice.MetricsHandlerModule;
 import co.cask.cdap.metrics.query.MetricsQueryService;
 import co.cask.cdap.notifications.feeds.guice.NotificationFeedServiceRuntimeModule;
 import co.cask.cdap.notifications.guice.NotificationServiceRuntimeModule;
+import co.cask.cdap.security.authorization.AuthorizationEnforcementModule;
 import co.cask.cdap.security.authorization.AuthorizerInstantiator;
 import co.cask.cdap.security.guice.SecureStoreModules;
 import co.cask.cdap.security.guice.SecurityModules;
@@ -128,6 +130,7 @@ public class StandaloneMain {
   private final ExternalJavaProcessExecutor zookeeperProcessExecutor;
   private final TrackerAppCreationService trackerAppCreationService;
   private final AuthorizerInstantiator authorizerInstantiator;
+  private final RemoteSystemOperationsService remoteSystemOperationsService;
 
   private ExternalAuthenticationServer externalAuthenticationServer;
   private ExploreExecutorService exploreExecutorService;
@@ -193,6 +196,7 @@ public class StandaloneMain {
     exploreClient = injector.getInstance(ExploreClient.class);
     metadataService = injector.getInstance(MetadataService.class);
     authorizerInstantiator = injector.getInstance(AuthorizerInstantiator.class);
+    remoteSystemOperationsService = injector.getInstance(RemoteSystemOperationsService.class);
 
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override
@@ -280,6 +284,8 @@ public class StandaloneMain {
       trackerAppCreationService.startAndWait();
     }
 
+    remoteSystemOperationsService.startAndWait();
+
     String protocol = sslEnabled ? "https" : "http";
     int dashboardPort = sslEnabled ?
       cConf.getInt(Constants.Dashboard.SSL_BIND_PORT) :
@@ -306,6 +312,7 @@ public class StandaloneMain {
 
       //  shut down router to stop all incoming traffic
       router.stopAndWait();
+      remoteSystemOperationsService.stopAndWait();
       // now the stream writer and the explore service (they need tx)
       streamService.stopAndWait();
       if (exploreExecutorService != null) {
@@ -507,7 +514,8 @@ public class StandaloneMain {
       new MetadataServiceModule(),
       new RemoteSystemOperationsServiceModule(),
       new AuditModule().getStandaloneModules(),
-      new AuthorizationModule()
+      new AuthorizationModule(),
+      new AuthorizationEnforcementModule().getStandaloneModules()
     );
   }
 }

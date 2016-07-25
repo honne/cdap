@@ -363,18 +363,11 @@ class HydratorPlusPlusConfigStore {
         node.outputSchema = node.plugin.properties[node.outputSchemaProperty];
       }
       if (nodeConfig.outputSchema.implicitSchema) {
-        let keys = Object.keys(nodeConfig.outputSchema.implicitSchema);
-        let formattedSchema = [];
-        angular.forEach(keys, (key) => {
-          formattedSchema.push({
-            name: key,
-            type: nodeConfig.outputSchema.implicitSchema[key]
-          });
-        });
-        node.outputSchema = JSON.stringify({ fields: formattedSchema });
+        let outputSchema = this.HydratorPlusPlusHydratorService.formatOutputSchemaToAvro(nodeConfig.outputSchema.implicitSchema);
+        node.outputSchema = outputSchema;
       }
       if (!node.outputSchema && nodeConfig.outputSchema.schemaProperties['default-schema']) {
-        node.outputSchema = nodeConfig.outputSchema.schemaProperties['default-schema'];
+        node.outputSchema = JSON.stringify(nodeConfig.outputSchema.schemaProperties['default-schema']);
         node.plugin.properties[node.outputSchemaProperty] = node.outputSchema;
       }
     };
@@ -522,20 +515,33 @@ class HydratorPlusPlusConfigStore {
         delete node.warning;
       }
     };
-    daglevelvalidation.forEach( validationFn => {
-      validationFn(nodes, (err, node) => {
-        if (err) {
-          isStateValid = false;
-          if (node) {
-            node.errorCount += 1;
-            setErrorWarningFlagOnNode(node);
+
+    /**
+     * A pipeline consisting of only custom actions is a valid pipeline,
+     * so we are skipping the at least 1 source and sink check
+     **/
+
+    let countActions = nodes.filter( (node) => {
+      return this.GLOBALS.pluginConvert[node.type] === 'action';
+    }).length;
+
+    if (countActions !== nodes.length) {
+      daglevelvalidation.forEach( validationFn => {
+        validationFn(nodes, (err, node) => {
+          if (err) {
+            isStateValid = false;
+            if (node) {
+              node.errorCount += 1;
+              setErrorWarningFlagOnNode(node);
+            }
+            errors.push({
+              type: err
+            });
           }
-          errors.push({
-            type: err
-          });
-        }
+        });
       });
-    });
+    }
+
     errorFactory.hasValidName(name, (err) => {
       if (err) {
         isStateValid = false;
@@ -571,6 +577,21 @@ class HydratorPlusPlusConfigStore {
         payload: {nodes: strayNodes}
       });
     }
+
+    let invalidConnections = [];
+    errorFactory.allConnectionsValid(nodes, connections, (errorConnection) => {
+      if (errorConnection) {
+        isStateValid = false;
+        invalidConnections.push(errorConnection);
+      }
+    });
+    if (invalidConnections.length) {
+      errors.push({
+        type: 'INVALID-CONNECTIONS',
+        payload: { connections: invalidConnections }
+      });
+    }
+
     if (errors.length && isShowConsoleMessage) {
       this.HydratorPlusPlusConsoleActions.addMessage(errors);
     }

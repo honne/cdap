@@ -36,6 +36,7 @@ import co.cask.cdap.proto.ApplicationDetail;
 import co.cask.cdap.proto.Id;
 import co.cask.cdap.proto.Instances;
 import co.cask.cdap.proto.NamespaceMeta;
+import co.cask.cdap.proto.PluginInstanceDetail;
 import co.cask.cdap.proto.ProgramRunStatus;
 import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.RunRecord;
@@ -170,7 +171,7 @@ public class AppFabricClient {
   }
 
   public String getStatus(String namespaceId, String appId, String flowId, ProgramType type)
-    throws BadRequestException, SchedulerException, NotFoundException {
+    throws Exception {
     MockResponder responder = new MockResponder();
     String uri = String.format("%s/apps/%s/%s/%s/status", getNamespacePath(namespaceId), appId, type, flowId);
     HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, uri);
@@ -213,7 +214,8 @@ public class AppFabricClient {
     verifyResponse(HttpResponseStatus.OK, responder.getStatus(), "Set service instances failed");
   }
 
-  public ServiceInstances getServiceInstances(String namespaceId, String applicationId, String serviceName) {
+  public ServiceInstances getServiceInstances(String namespaceId, String applicationId, String serviceName)
+    throws Exception {
     MockResponder responder = new MockResponder();
     String uri = String.format("%s/apps/%s/services/%s/instances",
                                getNamespacePath(namespaceId), applicationId, serviceName);
@@ -312,8 +314,7 @@ public class AppFabricClient {
     return nodeStates;
   }
 
-  public List<RunRecord> getHistory(Id.Program programId, ProgramRunStatus status) throws BadRequestException,
-    NotImplementedException, NotFoundException {
+  public List<RunRecord> getHistory(Id.Program programId, ProgramRunStatus status) throws Exception {
     String namespaceId = programId.getNamespaceId();
     String appId = programId.getApplicationId();
     String programName = programId.getId();
@@ -349,7 +350,7 @@ public class AppFabricClient {
   }
 
   public String scheduleStatus(String namespaceId, String appId, String schedId, int expectedResponseCode)
-    throws BadRequestException, SchedulerException {
+    throws Exception {
     MockResponder responder = new MockResponder();
     String uri = String.format("%s/apps/%s/schedules/%s/status", getNamespacePath(namespaceId), appId, schedId);
     HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
@@ -490,5 +491,18 @@ public class AppFabricClient {
                                                        programId.getApplication(),
                                                        programId.getType().getCategoryName(), programId.getProgram());
     verifyResponse(HttpResponseStatus.OK, mockResponder.getStatus(), "Saving runtime arguments failed");
+  }
+
+  public List<PluginInstanceDetail> getPlugins(ApplicationId application) throws Exception {
+    DefaultHttpRequest request = new DefaultHttpRequest(
+      HttpVersion.HTTP_1_1, HttpMethod.GET,
+      String.format("%s/apps/%s", getNamespacePath(application.getNamespace()), application.getApplication())
+    );
+    request.setHeader(Constants.Gateway.API_KEY, "api-key-example");
+    MockResponder mockResponder = new MockResponder();
+    appLifecycleHttpHandler.getPluginsInfo(request, mockResponder, application.getNamespace(),
+                                           application.getApplication());
+    verifyResponse(HttpResponseStatus.OK, mockResponder.getStatus(), "Getting app info failed");
+    return mockResponder.decodeResponseContent(new TypeToken<List<PluginInstanceDetail>>() { }.getType(), GSON);
   }
 }

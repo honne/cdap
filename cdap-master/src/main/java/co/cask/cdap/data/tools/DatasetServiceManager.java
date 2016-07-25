@@ -16,6 +16,8 @@
 
 package co.cask.cdap.data.tools;
 
+import co.cask.cdap.app.guice.AuthorizationModule;
+import co.cask.cdap.app.store.Store;
 import co.cask.cdap.common.ServiceUnavailableException;
 import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.common.guice.ConfigModule;
@@ -33,18 +35,31 @@ import co.cask.cdap.data2.datafabric.dataset.RemoteDatasetFramework;
 import co.cask.cdap.data2.datafabric.dataset.service.DatasetService;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.DatasetOpExecutorService;
 import co.cask.cdap.data2.dataset2.DatasetFramework;
+import co.cask.cdap.data2.security.ImpersonationInfo;
+import co.cask.cdap.data2.security.UGIProvider;
 import co.cask.cdap.explore.guice.ExploreClientModule;
+import co.cask.cdap.gateway.handlers.meta.RemoteSystemOperationsService;
+import co.cask.cdap.gateway.handlers.meta.RemoteSystemOperationsServiceModule;
+import co.cask.cdap.internal.app.store.DefaultStore;
 import co.cask.cdap.metrics.guice.MetricsClientRuntimeModule;
 import co.cask.cdap.proto.Id;
+import co.cask.cdap.security.CurrentUGIProvider;
+import co.cask.cdap.security.auth.context.AuthenticationContextModules;
+import co.cask.cdap.security.authorization.AuthorizationEnforcementModule;
+import co.cask.cdap.security.guice.SecureStoreModules;
 import co.cask.cdap.store.guice.NamespaceStoreModule;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
+import com.google.inject.Scopes;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.twill.zookeeper.ZKClientService;
 
+import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
@@ -60,6 +75,7 @@ public class DatasetServiceManager extends AbstractIdleService {
   private final ZKClientService zkClientService;
   private final DatasetFramework datasetFramework;
   private final DatasetOpExecutorService datasetOpExecutorService;
+  private final RemoteSystemOperationsService remoteSystemOperationsService;
 
   @Inject
   DatasetServiceManager(CConfiguration cConf, Configuration hConf) {
@@ -68,6 +84,7 @@ public class DatasetServiceManager extends AbstractIdleService {
     this.zkClientService = injector.getInstance(ZKClientService.class);
     this.datasetFramework = injector.getInstance(DatasetFramework.class);
     this.datasetOpExecutorService = injector.getInstance(DatasetOpExecutorService.class);
+    this.remoteSystemOperationsService = injector.getInstance(RemoteSystemOperationsService.class);
   }
 
   public DatasetFramework getDSFramework() {
@@ -80,6 +97,7 @@ public class DatasetServiceManager extends AbstractIdleService {
       zkClientService.startAndWait();
     }
     datasetOpExecutorService.startAndWait();
+    remoteSystemOperationsService.startAndWait();
     datasetService.startAndWait();
 
     // wait 5 minutes for DatasetService to start up
@@ -100,6 +118,7 @@ public class DatasetServiceManager extends AbstractIdleService {
   protected void shutDown() throws Exception {
     try {
       datasetService.stopAndWait();
+      remoteSystemOperationsService.stopAndWait();
       datasetOpExecutorService.startAndWait();
       zkClientService.stopAndWait();
     } catch (Throwable e) {
@@ -121,7 +140,20 @@ public class DatasetServiceManager extends AbstractIdleService {
       new DataSetsModules().getDistributedModules(),
       new MetricsClientRuntimeModule().getDistributedModules(),
       new ExploreClientModule(),
-      new NamespaceStoreModule().getDistributedModules()
+      new NamespaceStoreModule().getDistributedModules(),
+      new RemoteSystemOperationsServiceModule(),
+      new SecureStoreModules().getDistributedModules(),
+      new AuthorizationModule(),
+      new AuthorizationEnforcementModule().getDistributedModules(),
+      new AuthenticationContextModules().getMasterModule(),
+      new AbstractModule() {
+        @Override
+        protected void configure() {
+          bind(Store.class).to(DefaultStore.class);
+          // CDAP-6577 Perform impersonation when doing upgrade from CDAP 3.5.0
+          bind(UGIProvider.class).to(CurrentUGIProvider.class).in(Scopes.SINGLETON);
+        }
+      }
     );
   }
 }

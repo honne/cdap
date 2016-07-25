@@ -282,6 +282,6 @@ public class DefaultUsageRegistry implements UsageRegistry {
    * @param datasetFramework framework to add types and datasets to
    */
   public static void setupDatasets(DatasetFramework datasetFramework) throws IOException, DatasetManagementException {
-    datasetFramework.addInstance(UsageDataset.class.getName(), USAGE_INSTANCE_ID, DatasetProperties.EMPTY);
+    datasetFramework.addInstance(UsageDataset.class.getSimpleName(), USAGE_INSTANCE_ID, DatasetProperties.EMPTY);
   }
 }

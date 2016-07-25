@@ -22,7 +22,8 @@ import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.guice.ConfigModule;
 import co.cask.cdap.common.guice.DiscoveryRuntimeModule;
 import co.cask.cdap.common.guice.IOModule;
-import co.cask.cdap.common.guice.LocationUnitTestModule;
+import co.cask.cdap.common.guice.NamespaceClientUnitTestModule;
+import co.cask.cdap.common.guice.NonCustomLocationUnitTestModule;
 import co.cask.cdap.common.namespace.NamespaceAdmin;
 import co.cask.cdap.common.namespace.NamespacedLocationFactory;
 import co.cask.cdap.common.namespace.guice.NamespaceClientRuntimeModule;
@@ -41,6 +42,8 @@ import co.cask.cdap.data.view.ViewAdminModules;
 import co.cask.cdap.data2.datafabric.dataset.service.DatasetService;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.DatasetOpExecutor;
 import co.cask.cdap.data2.dataset2.DatasetFramework;
+import co.cask.cdap.data2.security.UGIProvider;
+import co.cask.cdap.data2.security.UnsupportedUGIProvider;
 import co.cask.cdap.data2.transaction.stream.StreamAdmin;
 import co.cask.cdap.explore.client.ExploreClient;
 import co.cask.cdap.explore.client.ExploreExecutionResult;
@@ -62,6 +65,9 @@ import co.cask.cdap.proto.QueryResult;
 import co.cask.cdap.proto.QueryStatus;
 import co.cask.cdap.proto.StreamProperties;
 import co.cask.cdap.proto.id.NamespaceId;
+import co.cask.cdap.security.auth.context.AuthenticationContextModules;
+import co.cask.cdap.security.authorization.AuthorizationEnforcementModule;
+import co.cask.cdap.security.authorization.AuthorizationTestModule;
 import co.cask.http.HttpHandler;
 import co.cask.tephra.TransactionManager;
 import co.cask.tephra.TxConstants;
@@ -226,15 +232,17 @@ public class BaseHiveExploreServiceTest {
     transactionManager.stopAndWait();
   }
 
+
   /**
    * Create a namespace because app fabric is not started in explore tests.
    */
   protected static void createNamespace(NamespaceId namespaceId) throws Exception {
     namespacedLocationFactory.get(namespaceId.toId()).mkdirs();
+    NamespaceMeta namespaceMeta = new NamespaceMeta.Builder().setName(namespaceId.toId()).build();
+    namespaceAdmin.create(namespaceMeta);
     if (!NamespaceId.DEFAULT.equals(namespaceId)) {
-      exploreService.createNamespace(namespaceId.toId());
+      exploreService.createNamespace(namespaceMeta);
     }
-    namespaceAdmin.create(new NamespaceMeta.Builder().setName(namespaceId.toId()).build());
   }
 
   /**
@@ -242,10 +250,10 @@ public class BaseHiveExploreServiceTest {
    */
   protected static void deleteNamespace(NamespaceId namespaceId) throws Exception {
     namespacedLocationFactory.get(namespaceId.toId()).delete(true);
-    namespaceAdmin.delete(namespaceId.toId());
     if (!NamespaceId.DEFAULT.equals(namespaceId)) {
       exploreService.deleteNamespace(namespaceId.toId());
     }
+    namespaceAdmin.delete(namespaceId.toId());
   }
 
   protected static String getDatasetHiveName(Id.DatasetInstance datasetID) {
@@ -384,7 +392,7 @@ public class BaseHiveExploreServiceTest {
       new ConfigModule(configuration, hConf),
       new IOModule(),
       new DiscoveryRuntimeModule().getInMemoryModules(),
-      new LocationUnitTestModule().getModule(),
+      new NonCustomLocationUnitTestModule().getModule(),
       new DataSetsModules().getStandaloneModules(),
       new DataSetServiceModules().getInMemoryModules(),
       new MetricsClientRuntimeModule().getInMemoryModules(),
@@ -394,11 +402,15 @@ public class BaseHiveExploreServiceTest {
       new ViewAdminModules().getInMemoryModules(),
       new StreamAdminModules().getInMemoryModules(),
       new NotificationServiceRuntimeModule().getInMemoryModules(),
-      new NamespaceClientRuntimeModule().getInMemoryModules(),
+      new AuthorizationTestModule(),
+      new AuthorizationEnforcementModule().getInMemoryModules(),
+      new AuthenticationContextModules().getMasterModule(),
+      new NamespaceClientUnitTestModule().getModule(),
       new AbstractModule() {
         @Override
         protected void configure() {
           bind(NotificationFeedManager.class).to(NoOpNotificationFeedManager.class);
+          bind(UGIProvider.class).to(UnsupportedUGIProvider.class);
 
           Multibinder<HttpHandler> handlerBinder =
             Multibinder.newSetBinder(binder(), HttpHandler.class, Names.named(Constants.Stream.STREAM_HANDLER));
@@ -440,7 +452,7 @@ public class BaseHiveExploreServiceTest {
       new ConfigModule(cConf, hConf),
       new IOModule(),
       new DiscoveryRuntimeModule().getStandaloneModules(),
-      new LocationUnitTestModule().getModule(),
+      new NonCustomLocationUnitTestModule().getModule(),
       new DataFabricModules().getStandaloneModules(),
       new DataSetsModules().getStandaloneModules(),
       new DataSetServiceModules().getStandaloneModules(),
@@ -455,10 +467,14 @@ public class BaseHiveExploreServiceTest {
       // for namespace admin to default namespace admin which needs a lot more stuff than what is needed for explore
       // unit tests. Since this explore standalone module needs persistent of files this should not affect the tests.
       new NamespaceClientRuntimeModule().getInMemoryModules(),
+      new AuthorizationTestModule(),
+      new AuthorizationEnforcementModule().getInMemoryModules(),
+      new AuthenticationContextModules().getMasterModule(),
       new AbstractModule() {
         @Override
         protected void configure() {
           bind(NotificationFeedManager.class).to(NoOpNotificationFeedManager.class);
+          bind(UGIProvider.class).to(UnsupportedUGIProvider.class);
 
           Multibinder<HttpHandler> handlerBinder =
             Multibinder.newSetBinder(binder(), HttpHandler.class, Names.named(Constants.Stream.STREAM_HANDLER));

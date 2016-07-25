@@ -36,6 +36,9 @@ import co.cask.cdap.data.view.ViewAdminModules;
 import co.cask.cdap.data2.audit.AuditModule;
 import co.cask.cdap.data2.metadata.writer.LineageWriter;
 import co.cask.cdap.data2.registry.RuntimeUsageRegistry;
+import co.cask.cdap.data2.security.ImpersonationInfo;
+import co.cask.cdap.data2.security.RemoteUGIProvider;
+import co.cask.cdap.data2.security.UGIProvider;
 import co.cask.cdap.explore.guice.ExploreClientModule;
 import co.cask.cdap.internal.app.queue.QueueReaderFactory;
 import co.cask.cdap.internal.app.store.remote.RemoteLineageWriter;
@@ -44,7 +47,10 @@ import co.cask.cdap.internal.app.store.remote.RemoteRuntimeUsageRegistry;
 import co.cask.cdap.logging.guice.LoggingModules;
 import co.cask.cdap.metrics.guice.MetricsClientRuntimeModule;
 import co.cask.cdap.notifications.feeds.client.NotificationFeedClientModule;
+import co.cask.cdap.security.CurrentUGIProvider;
+import co.cask.cdap.security.auth.context.AuthenticationContextModules;
 import co.cask.cdap.security.authorization.AuthorizationEnforcementModule;
+import co.cask.cdap.security.guice.SecureStoreModules;
 import com.google.inject.AbstractModule;
 import com.google.inject.Module;
 import com.google.inject.PrivateModule;
@@ -53,10 +59,12 @@ import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.google.inject.name.Names;
 import com.google.inject.util.Modules;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.twill.api.ServiceAnnouncer;
 import org.apache.twill.api.TwillContext;
 import org.apache.twill.common.Cancellable;
 
+import java.io.IOException;
 import java.net.InetAddress;
 
 /**
@@ -94,6 +102,8 @@ public class DistributedProgramRunnableModule {
       new NamespaceClientRuntimeModule().getDistributedModules(),
       new AuthorizationModule(),
       new AuthorizationEnforcementModule().getDistributedModules(),
+      new AuthenticationContextModules().getProgramContainerModule(),
+      new SecureStoreModules().getDistributedModules(),
       new AbstractModule() {
         @Override
         protected void configure() {
@@ -107,6 +117,9 @@ public class DistributedProgramRunnableModule {
 
           // For binding StreamWriter
           install(createStreamFactoryModule());
+
+          // don't need to perform any impersonation from within user progarms
+          bind(UGIProvider.class).to(CurrentUGIProvider.class).in(Scopes.SINGLETON);
         }
       }
     );

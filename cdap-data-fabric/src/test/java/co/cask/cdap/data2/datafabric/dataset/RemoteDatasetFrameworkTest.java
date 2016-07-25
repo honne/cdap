@@ -17,24 +17,33 @@
 package co.cask.cdap.data2.datafabric.dataset;
 
 import co.cask.cdap.api.dataset.DatasetManagementException;
+import co.cask.cdap.api.dataset.module.DatasetDefinitionRegistry;
 import co.cask.cdap.api.dataset.module.DatasetModule;
 import co.cask.cdap.api.metrics.MetricsCollectionService;
 import co.cask.cdap.common.conf.CConfigurationUtil;
 import co.cask.cdap.common.conf.Constants;
+import co.cask.cdap.common.discovery.EndpointStrategy;
+import co.cask.cdap.common.discovery.RandomEndpointStrategy;
+import co.cask.cdap.common.guice.ConfigModule;
+import co.cask.cdap.common.guice.DiscoveryRuntimeModule;
 import co.cask.cdap.common.metrics.NoOpMetricsCollectionService;
 import co.cask.cdap.data.dataset.SystemDatasetInstantiatorFactory;
 import co.cask.cdap.data.runtime.DynamicTransactionExecutorFactory;
 import co.cask.cdap.data2.datafabric.dataset.instance.DatasetInstanceManager;
 import co.cask.cdap.data2.datafabric.dataset.service.DatasetInstanceService;
 import co.cask.cdap.data2.datafabric.dataset.service.DatasetService;
+import co.cask.cdap.data2.datafabric.dataset.service.DatasetTypeService;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.DatasetAdminOpHTTPHandler;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.DatasetAdminService;
+import co.cask.cdap.data2.datafabric.dataset.service.executor.DatasetOpExecutor;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.DatasetOpExecutorService;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.InMemoryDatasetOpExecutor;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.LocalDatasetOpExecutor;
 import co.cask.cdap.data2.datafabric.dataset.type.DatasetTypeManager;
 import co.cask.cdap.data2.dataset2.AbstractDatasetFrameworkTest;
+import co.cask.cdap.data2.dataset2.DatasetDefinitionRegistryFactory;
 import co.cask.cdap.data2.dataset2.DatasetFramework;
+import co.cask.cdap.data2.dataset2.DefaultDatasetDefinitionRegistry;
 import co.cask.cdap.data2.dataset2.InMemoryDatasetFramework;
 import co.cask.cdap.data2.dataset2.SimpleKVTable;
 import co.cask.cdap.data2.dataset2.SingleTypeModule;
@@ -42,6 +51,7 @@ import co.cask.cdap.data2.dataset2.lib.table.CoreDatasetsModule;
 import co.cask.cdap.data2.dataset2.module.lib.inmemory.InMemoryTableModule;
 import co.cask.cdap.data2.metadata.store.NoOpMetadataStore;
 import co.cask.cdap.data2.metrics.DatasetMetricsReporter;
+import co.cask.cdap.data2.security.Impersonator;
 import co.cask.cdap.data2.transaction.DelegatingTransactionSystemClientService;
 import co.cask.cdap.data2.transaction.TransactionExecutorFactory;
 import co.cask.cdap.data2.transaction.TransactionSystemClientService;
@@ -49,18 +59,30 @@ import co.cask.cdap.explore.client.DiscoveryExploreClient;
 import co.cask.cdap.explore.client.ExploreFacade;
 import co.cask.cdap.proto.Id;
 import co.cask.cdap.proto.NamespaceMeta;
+import co.cask.cdap.security.auth.context.AuthenticationContextModules;
+import co.cask.cdap.security.authorization.AuthorizationEnforcementModule;
+import co.cask.cdap.security.authorization.AuthorizationEnforcementService;
+import co.cask.cdap.security.authorization.AuthorizationTestModule;
+import co.cask.cdap.security.authorization.AuthorizerInstantiator;
+import co.cask.cdap.security.spi.authentication.AuthenticationContext;
+import co.cask.cdap.security.spi.authorization.AuthorizationEnforcer;
 import co.cask.http.HttpHandler;
 import co.cask.tephra.TransactionManager;
 import co.cask.tephra.inmemory.InMemoryTxSystemClient;
+import co.cask.tephra.runtime.TransactionInMemoryModule;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Singleton;
+import com.google.inject.assistedinject.FactoryModuleBuilder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.twill.common.Threads;
-import org.apache.twill.discovery.InMemoryDiscoveryService;
-import org.apache.twill.discovery.ServiceDiscovered;
+import org.apache.twill.discovery.DiscoveryService;
+import org.apache.twill.discovery.DiscoveryServiceClient;
 import org.apache.twill.internal.Services;
 import org.junit.After;
 import org.junit.Assert;
@@ -68,7 +90,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.HashSet;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -85,24 +106,52 @@ public class RemoteDatasetFrameworkTest extends AbstractDatasetFrameworkTest {
     cConf.set(Constants.Dataset.Manager.ADDRESS, "localhost");
     cConf.setBoolean(Constants.Dangerous.UNRECOVERABLE_RESET, true);
 
-    // Starting DatasetService service
-    InMemoryDiscoveryService discoveryService = new InMemoryDiscoveryService();
-    MetricsCollectionService metricsCollectionService = new NoOpMetricsCollectionService();
 
-    // Tx Manager to support working with datasets
     Configuration txConf = HBaseConfiguration.create();
     CConfigurationUtil.copyTxProperties(cConf, txConf);
+
+    // ok to pass null, since the impersonator won't actually be called, if kerberos security is not enabled
+    Impersonator impersonator = new Impersonator(cConf, null, null);
+
+    // TODO: Refactor to use injector for everything
+    Injector injector = Guice.createInjector(
+      new ConfigModule(cConf, txConf),
+      new DiscoveryRuntimeModule().getInMemoryModules(),
+      new AuthorizationTestModule(),
+      new AuthorizationEnforcementModule().getInMemoryModules(),
+      new AuthenticationContextModules().getMasterModule(),
+      new TransactionInMemoryModule(),
+      new AbstractModule() {
+        @Override
+        protected void configure() {
+          bind(MetricsCollectionService.class).to(NoOpMetricsCollectionService.class).in(Singleton.class);
+          install(new FactoryModuleBuilder()
+                    .implement(DatasetDefinitionRegistry.class, DefaultDatasetDefinitionRegistry.class)
+                    .build(DatasetDefinitionRegistryFactory.class));
+          // through the injector, we only need RemoteDatasetFramework in these tests
+          bind(RemoteDatasetFramework.class);
+        }
+      }
+    );
+
+    // Tx Manager to support working with datasets
     txManager = new TransactionManager(txConf);
     txManager.startAndWait();
     InMemoryTxSystemClient txSystemClient = new InMemoryTxSystemClient(txManager);
     TransactionSystemClientService txSystemClientService = new DelegatingTransactionSystemClientService(txSystemClient);
 
-    framework = new RemoteDatasetFramework(cConf, discoveryService, registryFactory);
+    DiscoveryService discoveryService = injector.getInstance(DiscoveryService.class);
+    DiscoveryServiceClient discoveryServiceClient = injector.getInstance(DiscoveryServiceClient.class);
+    MetricsCollectionService metricsCollectionService = injector.getInstance(MetricsCollectionService.class);
+    AuthenticationContext authenticationContext = injector.getInstance(AuthenticationContext.class);
+
+    framework = new RemoteDatasetFramework(cConf, discoveryServiceClient, registryFactory, authenticationContext);
     SystemDatasetInstantiatorFactory datasetInstantiatorFactory =
       new SystemDatasetInstantiatorFactory(locationFactory, framework, cConf);
 
     DatasetAdminService datasetAdminService =
-      new DatasetAdminService(framework, cConf, locationFactory, datasetInstantiatorFactory, new NoOpMetadataStore());
+      new DatasetAdminService(framework, cConf, locationFactory, datasetInstantiatorFactory, new NoOpMetadataStore(),
+                              impersonator);
     ImmutableSet<HttpHandler> handlers =
       ImmutableSet.<HttpHandler>of(new DatasetAdminOpHTTPHandler(datasetAdminService));
     opExecutorService = new DatasetOpExecutorService(cConf, discoveryService, metricsCollectionService, handlers);
@@ -116,42 +165,37 @@ public class RemoteDatasetFrameworkTest extends AbstractDatasetFrameworkTest {
 
     InMemoryDatasetFramework mdsFramework = new InMemoryDatasetFramework(registryFactory, modules);
 
-    ExploreFacade exploreFacade = new ExploreFacade(new DiscoveryExploreClient(cConf, discoveryService), cConf);
+    ExploreFacade exploreFacade = new ExploreFacade(new DiscoveryExploreClient(cConf, discoveryServiceClient), cConf);
     TransactionExecutorFactory txExecutorFactory = new DynamicTransactionExecutorFactory(txSystemClient);
+    AuthorizationEnforcer authorizationEnforcer = injector.getInstance(AuthorizationEnforcer.class);
+    AuthorizationEnforcementService authEnforcementService =
+      injector.getInstance(AuthorizationEnforcementService.class);
+
+    DatasetTypeManager typeManager = new DatasetTypeManager(cConf, locationFactory, txSystemClientService,
+                                                            txExecutorFactory, mdsFramework, DEFAULT_MODULES,
+                                                            impersonator);
+    DatasetInstanceManager instanceManager = new DatasetInstanceManager(txSystemClientService, txExecutorFactory,
+                                                                        mdsFramework);
+    AuthorizerInstantiator authorizerInstantiator = injector.getInstance(AuthorizerInstantiator.class);
+    DatasetTypeService typeService = new DatasetTypeService(typeManager, namespaceQueryAdmin, namespacedLocationFactory,
+                                                            authorizationEnforcer, authorizerInstantiator,
+                                                            authenticationContext, cConf, impersonator);
+    DatasetOpExecutor opExecutor = new LocalDatasetOpExecutor(cConf, discoveryServiceClient, opExecutorService);
     DatasetInstanceService instanceService = new DatasetInstanceService(
-      new DatasetTypeManager(cConf, locationFactory, txSystemClientService,
-                             txExecutorFactory, mdsFramework, DEFAULT_MODULES),
-      new DatasetInstanceManager(txSystemClientService, txExecutorFactory, mdsFramework),
-      new LocalDatasetOpExecutor(cConf, discoveryService, opExecutorService),
-      exploreFacade,
-      cConf,
-      namespaceQueryAdmin);
+      typeManager, instanceManager, opExecutor, exploreFacade, namespaceQueryAdmin, authorizationEnforcer,
+      authorizerInstantiator, authenticationContext);
     instanceService.setAuditPublisher(inMemoryAuditPublisher);
 
-    service = new DatasetService(cConf,
-                                 namespacedLocationFactory,
-                                 discoveryService,
-                                 discoveryService,
-                                 new DatasetTypeManager(cConf, locationFactory, txSystemClientService,
-                                                        txExecutorFactory, mdsFramework, DEFAULT_MODULES),
-                                 metricsCollectionService,
-                                 new InMemoryDatasetOpExecutor(framework),
-                                 new HashSet<DatasetMetricsReporter>(),
-                                 instanceService, namespaceQueryAdmin
-    );
+    service = new DatasetService(cConf, discoveryService, discoveryServiceClient, typeManager, metricsCollectionService,
+                                 new InMemoryDatasetOpExecutor(framework), new HashSet<DatasetMetricsReporter>(),
+                                 typeService, instanceService, authEnforcementService);
     // Start dataset service, wait for it to be discoverable
-    service.start();
-    final CountDownLatch startLatch = new CountDownLatch(1);
-    discoveryService.discover(Constants.Service.DATASET_MANAGER).watchChanges(new ServiceDiscovered.ChangeListener() {
-      @Override
-      public void onChange(ServiceDiscovered serviceDiscovered) {
-        if (!Iterables.isEmpty(serviceDiscovered)) {
-          startLatch.countDown();
-        }
-      }
-    }, Threads.SAME_THREAD_EXECUTOR);
-
-    startLatch.await(5, TimeUnit.SECONDS);
+    service.startAndWait();
+    EndpointStrategy endpointStrategy = new RandomEndpointStrategy(discoveryServiceClient.discover(
+      Constants.Service.DATASET_MANAGER)
+    );
+    Preconditions.checkNotNull(endpointStrategy.pick(5, TimeUnit.SECONDS),
+                               "%s service is not up after 5 seconds", service);
 
     createNamespace(Id.Namespace.SYSTEM);
     createNamespace(NAMESPACE_ID);

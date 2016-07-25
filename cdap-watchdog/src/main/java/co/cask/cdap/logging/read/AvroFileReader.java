@@ -19,8 +19,10 @@ package co.cask.cdap.logging.read;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import co.cask.cdap.common.io.Locations;
 import co.cask.cdap.common.io.SeekableInputStream;
+import co.cask.cdap.data2.security.Impersonator;
 import co.cask.cdap.logging.filter.Filter;
 import co.cask.cdap.logging.serialize.LoggingEvent;
+import co.cask.cdap.proto.id.NamespaceId;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -38,13 +40,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * Reads log events from an Avro file.
  */
 public class AvroFileReader {
   private static final Logger LOG = LoggerFactory.getLogger(AvroFileReader.class);
-  private static final long DEFAULT_SKIP_LEN = 50 * 1024;
+  private static final long DEFAULT_SKIP_LEN = 10 * 1024 * 1024;
 
   private final Schema schema;
 
@@ -53,9 +56,9 @@ public class AvroFileReader {
   }
 
   public void readLog(Location file, Filter logFilter, long fromTimeMs, long toTimeMs,
-                      int maxEvents, Callback callback) {
+                      int maxEvents, Callback callback, NamespaceId namespaceId, Impersonator impersonator) {
     try {
-      DataFileReader<GenericRecord> dataFileReader = createReader(file);
+      DataFileReader<GenericRecord> dataFileReader = createReader(file, namespaceId, impersonator);
       try {
         ILoggingEvent loggingEvent;
         GenericRecord datum;
@@ -70,6 +73,7 @@ public class AvroFileReader {
             long curPos = dataFileReader.tell();
             prevPrevSyncPos = prevSyncPos;
             prevSyncPos = dataFileReader.previousSync();
+            LOG.trace("Syncing to pos {}", curPos);
             dataFileReader.sync(curPos);
             if (dataFileReader.hasNext()) {
               loggingEvent = LoggingEvent.decode(dataFileReader.next(datum));
@@ -78,6 +82,7 @@ public class AvroFileReader {
 
           // We're now likely past the record with fromTimeMs, rewind to the previous sync point
           dataFileReader.sync(prevPrevSyncPos);
+          LOG.trace("Final sync pos {}", prevPrevSyncPos);
 
           // Start reading events from file
           int count = 0;
@@ -109,9 +114,10 @@ public class AvroFileReader {
     }
   }
 
-  public Collection<LogEvent> readLogPrev(Location file, Filter logFilter, long fromTimeMs, final int maxEvents) {
+  public Collection<LogEvent> readLogPrev(Location file, Filter logFilter, long fromTimeMs, final int maxEvents,
+                                          NamespaceId namespaceId, Impersonator impersonator) {
     try {
-      DataFileReader<GenericRecord> dataFileReader = createReader(file);
+      DataFileReader<GenericRecord> dataFileReader = createReader(file, namespaceId, impersonator);
 
       try {
         if (!dataFileReader.hasNext()) {
@@ -222,10 +228,10 @@ public class AvroFileReader {
     return startPosition;
   }
 
-  private DataFileReader<GenericRecord> createReader(Location location) throws IOException {
-    return new DataFileReader<>(new LocationSeekableInput(location),
+  private DataFileReader<GenericRecord> createReader(Location location, NamespaceId namespaceId,
+                                                     Impersonator impersonator) throws IOException {
+    return new DataFileReader<>(new LocationSeekableInput(location, namespaceId, impersonator),
                                 new GenericDatumReader<GenericRecord>(schema));
-
   }
 
   /**
@@ -236,8 +242,22 @@ public class AvroFileReader {
     private final SeekableInputStream is;
     private final long len;
 
-    LocationSeekableInput(Location location) throws IOException {
-      this.is = Locations.newInputSupplier(location).getInput();
+    LocationSeekableInput(final Location location,
+                          NamespaceId namespaceId, Impersonator impersonator) throws IOException {
+      try {
+        this.is = impersonator.doAs(namespaceId, new Callable<SeekableInputStream>() {
+          @Override
+          public SeekableInputStream call() throws Exception {
+            return Locations.newInputSupplier(location).getInput();
+          }
+        });
+      } catch (IOException e) {
+        throw e;
+      } catch (Exception e) {
+        // should not happen
+        throw Throwables.propagate(e);
+      }
+
       this.len = location.length();
     }
 

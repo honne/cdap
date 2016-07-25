@@ -24,7 +24,7 @@ import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.guice.ConfigModule;
 import co.cask.cdap.common.guice.DiscoveryRuntimeModule;
 import co.cask.cdap.common.guice.IOModule;
-import co.cask.cdap.common.guice.LocationUnitTestModule;
+import co.cask.cdap.common.guice.NonCustomLocationUnitTestModule;
 import co.cask.cdap.common.namespace.NamespaceAdmin;
 import co.cask.cdap.common.namespace.NamespacedLocationFactory;
 import co.cask.cdap.common.namespace.guice.NamespaceClientRuntimeModule;
@@ -36,6 +36,8 @@ import co.cask.cdap.data.view.ViewAdminModules;
 import co.cask.cdap.data2.datafabric.dataset.service.DatasetService;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.DatasetOpExecutor;
 import co.cask.cdap.data2.dataset2.DatasetFramework;
+import co.cask.cdap.data2.security.UGIProvider;
+import co.cask.cdap.data2.security.UnsupportedUGIProvider;
 import co.cask.cdap.explore.client.DiscoveryExploreClient;
 import co.cask.cdap.explore.client.ExploreClient;
 import co.cask.cdap.explore.guice.ExploreClientModule;
@@ -48,6 +50,9 @@ import co.cask.cdap.notifications.feeds.service.NoOpNotificationFeedManager;
 import co.cask.cdap.notifications.guice.NotificationServiceRuntimeModule;
 import co.cask.cdap.proto.Id;
 import co.cask.cdap.proto.NamespaceMeta;
+import co.cask.cdap.security.auth.context.AuthenticationContextModules;
+import co.cask.cdap.security.authorization.AuthorizationEnforcementModule;
+import co.cask.cdap.security.authorization.AuthorizationTestModule;
 import co.cask.tephra.Transaction;
 import co.cask.tephra.TransactionManager;
 import com.google.common.collect.ImmutableList;
@@ -76,7 +81,6 @@ public class ExploreDisabledTest {
   private static DatasetOpExecutor dsOpExecutor;
   private static DatasetService datasetService;
   private static ExploreClient exploreClient;
-  private static NamespacedLocationFactory namespacedLocationFactory;
   private static NamespaceAdmin namespaceAdmin;
 
   @BeforeClass
@@ -97,14 +101,14 @@ public class ExploreDisabledTest {
     datasetFramework = injector.getInstance(DatasetFramework.class);
 
     namespaceAdmin = injector.getInstance(NamespaceAdmin.class);
-    namespacedLocationFactory = injector.getInstance(NamespacedLocationFactory.class);
+    NamespacedLocationFactory namespacedLocationFactory = injector.getInstance(NamespacedLocationFactory.class);
 
-    namespaceAdmin.create(new NamespaceMeta.Builder().setName(namespaceId).build());
+    NamespaceMeta namespaceMeta = new NamespaceMeta.Builder().setName(namespaceId).build();
+    namespaceAdmin.create(namespaceMeta);
     // This happens when you create a namespace via REST APIs. However, since we do not start AppFabricServer in
     // Explore tests, simulating that scenario by explicitly calling DatasetFramework APIs.
     namespacedLocationFactory.get(namespaceId).mkdirs();
-    exploreClient.addNamespace(namespaceId);
-
+    exploreClient.addNamespace(namespaceMeta);
   }
 
   @AfterClass
@@ -212,7 +216,7 @@ public class ExploreDisabledTest {
         new ConfigModule(configuration, hConf),
         new IOModule(),
         new DiscoveryRuntimeModule().getInMemoryModules(),
-        new LocationUnitTestModule().getModule(),
+        new NonCustomLocationUnitTestModule().getModule(),
         new DataFabricModules().getInMemoryModules(),
         new DataSetsModules().getStandaloneModules(),
         new DataSetServiceModules().getInMemoryModules(),
@@ -223,10 +227,14 @@ public class ExploreDisabledTest {
         new StreamAdminModules().getInMemoryModules(),
         new NotificationServiceRuntimeModule().getInMemoryModules(),
         new NamespaceClientRuntimeModule().getInMemoryModules(),
+        new AuthorizationTestModule(),
+        new AuthorizationEnforcementModule().getInMemoryModules(),
+        new AuthenticationContextModules().getMasterModule(),
         new AbstractModule() {
           @Override
           protected void configure() {
             bind(NotificationFeedManager.class).to(NoOpNotificationFeedManager.class);
+            bind(UGIProvider.class).to(UnsupportedUGIProvider.class);
           }
         }
     );

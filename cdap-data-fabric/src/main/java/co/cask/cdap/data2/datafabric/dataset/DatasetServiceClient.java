@@ -33,7 +33,9 @@ import co.cask.cdap.proto.DatasetModuleMeta;
 import co.cask.cdap.proto.DatasetSpecificationSummary;
 import co.cask.cdap.proto.DatasetTypeMeta;
 import co.cask.cdap.proto.Id;
-import co.cask.cdap.security.spi.authentication.SecurityRequestContext;
+import co.cask.cdap.proto.id.NamespaceId;
+import co.cask.cdap.proto.security.Principal;
+import co.cask.cdap.security.spi.authentication.AuthenticationContext;
 import co.cask.common.http.HttpMethod;
 import co.cask.common.http.HttpRequest;
 import co.cask.common.http.HttpRequestConfig;
@@ -74,11 +76,13 @@ class DatasetServiceClient {
   private static final Type MODULE_META_LIST_TYPE = new TypeToken<List<DatasetModuleMeta>>() { }.getType();
 
   private final Supplier<EndpointStrategy> endpointStrategySupplier;
-  private final Id.Namespace namespaceId;
+  private final NamespaceId namespaceId;
   private final HttpRequestConfig httpRequestConfig;
+  private final boolean securityEnabled;
+  private final AuthenticationContext authenticationContext;
 
-  DatasetServiceClient(final DiscoveryServiceClient discoveryClient, Id.Namespace namespaceId,
-                              CConfiguration cConf) {
+  DatasetServiceClient(final DiscoveryServiceClient discoveryClient, NamespaceId namespaceId,
+                       CConfiguration cConf, AuthenticationContext authenticationContext) {
     this.endpointStrategySupplier = Suppliers.memoize(new Supplier<EndpointStrategy>() {
       @Override
       public EndpointStrategy get() {
@@ -86,9 +90,10 @@ class DatasetServiceClient {
       }
     });
     this.namespaceId = namespaceId;
-
     int httpTimeoutMs = cConf.getInt(Constants.HTTP_CLIENT_TIMEOUT_MS);
     this.httpRequestConfig = new HttpRequestConfig(httpTimeoutMs, httpTimeoutMs);
+    this.securityEnabled = cConf.getBoolean(Constants.Security.ENABLED);
+    this.authenticationContext = authenticationContext;
   }
 
   @Nullable
@@ -141,6 +146,7 @@ class DatasetServiceClient {
     return GSON.fromJson(response.getResponseBodyAsString(), MODULE_META_LIST_TYPE);
   }
 
+  @Nullable
   public DatasetTypeMeta getType(String typeName) throws DatasetManagementException {
     HttpResponse response = doGet("types/" + typeName);
     if (HttpResponseStatus.NOT_FOUND.getCode() == response.getResponseCode()) {
@@ -255,10 +261,6 @@ class DatasetServiceClient {
     return doRequest(HttpMethod.GET, resource);
   }
 
-  private HttpResponse doGet(String resource, Multimap<String, String> headers) throws DatasetManagementException {
-    return doRequest(HttpMethod.GET, resource, headers, (InputSupplier<? extends InputStream>) null);
-  }
-
   private HttpResponse doPut(String resource, String body) throws DatasetManagementException {
     return doRequest(HttpMethod.PUT, resource, null, body);
   }
@@ -271,13 +273,11 @@ class DatasetServiceClient {
     return doRequest(HttpMethod.DELETE, resource);
   }
 
-  private HttpResponse doRequest(HttpMethod method, String resource,
-                                 @Nullable Multimap<String, String> headers,
-                                 @Nullable String body) throws DatasetManagementException {
-
+  private HttpResponse doRequest(HttpMethod method, String resource, @Nullable Multimap<String, String> headers,
+                                 String body) throws DatasetManagementException {
     String url = resolve(resource);
     try {
-      return HttpRequests.execute(processBuilder(
+      return HttpRequests.execute(addUserIdHeader(
         HttpRequest.builder(method, new URL(url))
           .addHeaders(headers)
           .withBody(body)
@@ -298,11 +298,11 @@ class DatasetServiceClient {
 
     String url = resolve(resource);
     try {
-      return HttpRequests.execute(processBuilder(
+      return HttpRequests.execute(addUserIdHeader(
         HttpRequest.builder(method, new URL(url))
           .addHeaders(headers)
           .withBody(body)
-      ).build());
+      ).build(), httpRequestConfig);
     } catch (IOException e) {
       throw new DatasetManagementException(
         String.format("Error during talking to Dataset Service at %s while doing %s with headers %s and body %s",
@@ -312,11 +312,26 @@ class DatasetServiceClient {
     }
   }
 
-  private HttpRequest.Builder processBuilder(HttpRequest.Builder builder) {
-    if (SecurityRequestContext.getUserId() != null) {
-      builder.addHeader(Constants.Security.Headers.USER_ID, SecurityRequestContext.getUserId());
+  private HttpRequest.Builder addUserIdHeader(HttpRequest.Builder builder) throws IOException {
+    if (!securityEnabled) {
+      return builder;
     }
-    return builder;
+    String userId;
+    if (NamespaceId.SYSTEM.equals(namespaceId)) {
+      // For getting a system dataset like MDS, use the system principal. It is ok to do so, since DatasetServiceClient
+      // is an internal client that is not exposed to users.
+      // TODO: CDAP-6583: This is dangerous. Remove.
+      userId = Principal.SYSTEM.getName();
+    } else {
+      // If the request originated from the router and was forwarded to any service other than dataset service, before
+      // going to dataset service via dataset service client, the userId could be set in the SecurityRequestContext.
+      // e.g. deploying an app that contains a dataset
+      // For user datasets, if a dataset call is happening from a program runtime, then find the userId from
+      // UserGroupInformation#getCurrentUser()
+
+      userId = authenticationContext.getPrincipal().getName();
+    }
+    return builder.addHeader(Constants.Security.Headers.USER_ID, userId);
   }
 
   private HttpResponse doRequest(HttpMethod method, String url) throws DatasetManagementException {
@@ -330,6 +345,6 @@ class DatasetServiceClient {
     }
     InetSocketAddress addr = discoverable.getSocketAddress();
     return String.format("http://%s:%s%s/namespaces/%s/data/%s", addr.getHostName(), addr.getPort(),
-                         Constants.Gateway.API_VERSION_3, namespaceId.getId(), resource);
+                         Constants.Gateway.API_VERSION_3, namespaceId.getNamespace(), resource);
   }
 }

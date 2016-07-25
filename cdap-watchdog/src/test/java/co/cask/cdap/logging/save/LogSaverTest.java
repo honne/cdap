@@ -28,8 +28,8 @@ import co.cask.cdap.common.logging.LoggingContext;
 import co.cask.cdap.common.logging.LoggingContextAccessor;
 import co.cask.cdap.common.logging.NamespaceLoggingContext;
 import co.cask.cdap.common.logging.ServiceLoggingContext;
-import co.cask.cdap.common.logging.SystemLoggingContext;
 import co.cask.cdap.data2.dataset2.lib.table.inmemory.InMemoryTableService;
+import co.cask.cdap.data2.security.Impersonator;
 import co.cask.cdap.internal.io.SchemaTypeAdapter;
 import co.cask.cdap.logging.KafkaTestBase;
 import co.cask.cdap.logging.LoggingConfiguration;
@@ -43,6 +43,8 @@ import co.cask.cdap.logging.read.AvroFileReader;
 import co.cask.cdap.logging.read.FileLogReader;
 import co.cask.cdap.logging.read.LogEvent;
 import co.cask.cdap.logging.serialize.LogSchema;
+import co.cask.cdap.logging.write.FileMetaDataManager;
+import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.test.SlowTests;
 import co.cask.tephra.TransactionManager;
 import com.google.common.base.Function;
@@ -61,9 +63,7 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.twill.filesystem.Location;
-import org.apache.twill.filesystem.LocationFactory;
 import org.apache.twill.kafka.client.FetchedMessage;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -76,14 +76,12 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.text.SimpleDateFormat;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -101,6 +99,7 @@ public class LogSaverTest extends KafkaTestBase {
   private static String logBaseDir;
   private static KafkaLogAppender appender;
   private static Gson gson;
+  private static Impersonator impersonator;
 
   @BeforeClass
   public static void startLogSaver() throws Exception {
@@ -109,6 +108,7 @@ public class LogSaverTest extends KafkaTestBase {
     cConf.set(LoggingConfiguration.LOG_BASE_DIR, logBaseDir);
 
     injector = KAFKA_TESTER.getInjector();
+    impersonator = injector.getInstance(Impersonator.class);
     txManager = injector.getInstance(TransactionManager.class);
     txManager.startAndWait();
 
@@ -124,16 +124,15 @@ public class LogSaverTest extends KafkaTestBase {
 
     publishLogs();
 
-    LocationFactory locationFactory = injector.getInstance(LocationFactory.class);
-    String logBaseDir = cConf.get(LoggingConfiguration.LOG_BASE_DIR);
-    String namespacesDir = cConf.get(Constants.Namespace.NAMESPACES_DIR);
-    Location ns1LogBaseDir = locationFactory.create(namespacesDir).append("NS_1").append(logBaseDir);
-    Location ns2LogBaseDir = locationFactory.create(namespacesDir).append("NS_2").append(logBaseDir);
-    Location systemLogBaseDir = locationFactory.create(namespacesDir).append("system").append(logBaseDir);
-
-    waitTillLogSaverDone(ns1LogBaseDir, "APP_1/flow-FLOW_1/%s", "Test log message 119 arg1 arg2");
-    waitTillLogSaverDone(ns2LogBaseDir, "APP_2/flow-FLOW_2/%s", "Test log message 119 arg1 arg2");
-    waitTillLogSaverDone(systemLogBaseDir, "services/service-metrics/%s", "Test log message 59 arg1 arg2");
+    FileMetaDataManager fileMetaDataManager = injector.getInstance(FileMetaDataManager.class);
+    waitTillLogSaverDone(fileMetaDataManager,
+                         new FlowletLoggingContext("NS_1", "APP_1", "FLOW_1", "", null, "INSTANCE"),
+                         "Test log message 119 arg1 arg2");
+    waitTillLogSaverDone(fileMetaDataManager,
+                         new FlowletLoggingContext("NS_2", "APP_2", "FLOW_2", "", null, "INSTANCE"),
+                         "Test log message 119 arg1 arg2");
+    waitTillLogSaverDone(fileMetaDataManager, new ServiceLoggingContext("system", "services", "metrics"),
+                         "Test log message 59 arg1 arg2");
 
     logSaver.stopAndWait();
   }
@@ -147,11 +146,14 @@ public class LogSaverTest extends KafkaTestBase {
 
   @Test
   public void testCheckpoint() throws Exception {
-    TypeLiteral<Set<KafkaLogProcessor>> type = new TypeLiteral<Set<KafkaLogProcessor>>() { };
-    Set<KafkaLogProcessor> processors =
-      injector.getInstance(Key.get(type, Names.named(Constants.LogSaver.MESSAGE_PROCESSORS)));
+    TypeLiteral<Set<KafkaLogProcessorFactory>> type = new TypeLiteral<Set<KafkaLogProcessorFactory>>() {
+    };
+    Set<KafkaLogProcessorFactory> processorFactories =
+      injector.getInstance(Key.get(type, Names.named(Constants.LogSaver.MESSAGE_PROCESSOR_FACTORIES)));
+
     try {
-      for (KafkaLogProcessor processor : processors) {
+      for (KafkaLogProcessorFactory processorFactory : processorFactories) {
+        KafkaLogProcessor processor = processorFactory.create();
         CheckpointManager checkpointManager = getCheckPointManager(processor);
 
         // Verify checkpoint offset
@@ -240,8 +242,8 @@ public class LogSaverTest extends KafkaTestBase {
                           allEvents.get(i).getLoggingEvent().getFormattedMessage());
       if (loggingContext instanceof ServiceLoggingContext) {
         Assert.assertEquals(
-          loggingContext.getSystemTagsMap().get(SystemLoggingContext.TAG_SYSTEM_ID).getValue(),
-          allEvents.get(i).getLoggingEvent().getMDCPropertyMap().get(SystemLoggingContext.TAG_SYSTEM_ID));
+          loggingContext.getSystemTagsMap().get(NamespaceLoggingContext.TAG_NAMESPACE_ID).getValue(),
+          allEvents.get(i).getLoggingEvent().getMDCPropertyMap().get(NamespaceLoggingContext.TAG_NAMESPACE_ID));
         Assert.assertEquals(
           loggingContext.getSystemTagsMap().get(ComponentLoggingContext.TAG_COMPONENT_ID).getValue(),
           allEvents.get(i).getLoggingEvent().getMDCPropertyMap().get(ComponentLoggingContext.TAG_COMPONENT_ID));
@@ -344,17 +346,17 @@ public class LogSaverTest extends KafkaTestBase {
     final Multimap<String, String> contextMessages = ArrayListMultimap.create();
     KAFKA_TESTER.getPublishedMessages(KAFKA_TESTER.getCConf().get(Constants.Logging.KAFKA_TOPIC),
                                       ImmutableSet.of(0, 1), 300, 0, new Function<FetchedMessage, String>() {
-      @Override
-      public String apply(final FetchedMessage input) {
-        try {
-          Map.Entry<String, String> entry = convertFetchedMessage(input);
-          contextMessages.put(entry.getKey(), entry.getValue());
-        } catch (IOException e) {
-          LOG.error("Error while converting FetchedMessage {} ", e);
+        @Override
+        public String apply(final FetchedMessage input) {
+          try {
+            Map.Entry<String, String> entry = convertFetchedMessage(input);
+            contextMessages.put(entry.getKey(), entry.getValue());
+          } catch (IOException e) {
+            LOG.error("Error while converting FetchedMessage {} ", e);
+          }
+          return "";
         }
-        return "";
-      }
-    });
+      });
     for (Map.Entry<String, Collection<String>> entry : contextMessages.asMap().entrySet()) {
       LOG.info("Kafka Message Count for {} is {}", entry.getKey(), entry.getValue().size());
     }
@@ -439,16 +441,21 @@ public class LogSaverTest extends KafkaTestBase {
     }
   }
 
-  private static void waitTillLogSaverDone(Location logBaseDir, String filePattern, String logLine) throws Exception {
+  private static void waitTillLogSaverDone(FileMetaDataManager fileMetaDataManager, LoggingContext loggingContext,
+                                           String logLine) throws Exception {
     long start = System.currentTimeMillis();
 
     while (true) {
-      Location latestFile = getLatestFile(logBaseDir, filePattern);
-      if (latestFile != null) {
+      NavigableMap<Long, Location> files = fileMetaDataManager.listFiles(loggingContext);
+      Map.Entry<Long, Location> lastEntry = files.lastEntry();
+      if (lastEntry != null) {
+        Location latestFile = lastEntry.getValue();
         AvroFileReader logReader = new AvroFileReader(new LogSchema().getAvroSchema());
         LogCallback logCallback = new LogCallback();
         logCallback.init();
-        logReader.readLog(latestFile, Filter.EMPTY_FILTER, 0, Long.MAX_VALUE, Integer.MAX_VALUE, logCallback);
+        NamespaceId namespaceId = LoggingContextHelper.getNamespaceId(loggingContext);
+        logReader.readLog(latestFile, Filter.EMPTY_FILTER, 0, Long.MAX_VALUE, Integer.MAX_VALUE, logCallback,
+                          namespaceId, impersonator);
         logCallback.close();
         List<LogEvent> events = logCallback.getEvents();
         if (events.size() > 0) {
@@ -465,26 +472,5 @@ public class LogSaverTest extends KafkaTestBase {
 
     LOG.info("Done waiting!");
     TimeUnit.SECONDS.sleep(1);
-  }
-
-  private static Location getLatestFile(Location logBaseDir, String filePattern) throws Exception {
-    String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
-    Location dir = logBaseDir.append(String.format(filePattern, date));
-
-    if (!dir.exists()) {
-      return null;
-    }
-
-    List<Location> files = dir.list();
-    if (files.isEmpty()) {
-      return null;
-    }
-
-    SortedMap<Long, Location> map = Maps.newTreeMap();
-    for (Location file : files) {
-      String filename = FilenameUtils.getBaseName(file.getName());
-      map.put(Long.parseLong(filename), file);
-    }
-    return map.get(map.lastKey());
   }
 }

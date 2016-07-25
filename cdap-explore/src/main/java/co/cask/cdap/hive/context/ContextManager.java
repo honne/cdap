@@ -29,6 +29,7 @@ import co.cask.cdap.common.guice.LocationRuntimeModule;
 import co.cask.cdap.common.guice.ZKClientModule;
 import co.cask.cdap.common.lang.FilterClassLoader;
 import co.cask.cdap.common.metrics.NoOpMetricsCollectionService;
+import co.cask.cdap.common.namespace.guice.NamespaceClientRuntimeModule;
 import co.cask.cdap.data.dataset.SystemDatasetInstantiator;
 import co.cask.cdap.data.dataset.SystemDatasetInstantiatorFactory;
 import co.cask.cdap.data.runtime.DataFabricModules;
@@ -37,6 +38,8 @@ import co.cask.cdap.data.stream.StreamAdminModules;
 import co.cask.cdap.data.view.ViewAdminModules;
 import co.cask.cdap.data2.audit.AuditModule;
 import co.cask.cdap.data2.dataset2.DatasetFramework;
+import co.cask.cdap.data2.security.RemoteUGIProvider;
+import co.cask.cdap.data2.security.UGIProvider;
 import co.cask.cdap.data2.transaction.stream.StreamAdmin;
 import co.cask.cdap.data2.transaction.stream.StreamConfig;
 import co.cask.cdap.explore.guice.ExploreClientModule;
@@ -44,6 +47,8 @@ import co.cask.cdap.hive.datasets.DatasetSerDe;
 import co.cask.cdap.hive.stream.StreamSerDe;
 import co.cask.cdap.notifications.feeds.client.NotificationFeedClientModule;
 import co.cask.cdap.proto.Id;
+import co.cask.cdap.security.auth.context.AuthenticationContextModules;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -113,18 +118,13 @@ public class ContextManager {
     return savedContext;
   }
 
-  // this method is called by the mappers/reducers of jobs launched by Hive.
-  private static Context createContext(Configuration conf) throws IOException {
-    // Create context needs to happen only when running in as a MapReduce job.
-    // In other cases, ContextManager will be initialized using saveContext method.
-
-    CConfiguration cConf = ConfigurationUtil.get(conf, Constants.Explore.CCONF_KEY, CConfCodec.INSTANCE);
-    Configuration hConf = ConfigurationUtil.get(conf, Constants.Explore.HCONF_KEY, HConfCodec.INSTANCE);
-
-    Injector injector = Guice.createInjector(
+  @VisibleForTesting
+  static Injector createInjector(CConfiguration cConf, Configuration hConf) {
+    return Guice.createInjector(
       new ConfigModule(cConf, hConf),
       new ZKClientModule(),
       new LocationRuntimeModule().getDistributedModules(),
+      new NamespaceClientRuntimeModule().getDistributedModules(),
       new DiscoveryRuntimeModule().getDistributedModules(),
       new DataFabricModules().getDistributedModules(),
       new DataSetsModules().getDistributedModules(),
@@ -134,13 +134,26 @@ public class ContextManager {
       new NotificationFeedClientModule(),
       new KafkaClientModule(),
       new AuditModule().getDistributedModules(),
+      new AuthenticationContextModules().getMasterModule(),
       new AbstractModule() {
         @Override
         protected void configure() {
+          bind(UGIProvider.class).to(RemoteUGIProvider.class).in(Scopes.SINGLETON);
           bind(MetricsCollectionService.class).to(NoOpMetricsCollectionService.class).in(Scopes.SINGLETON);
         }
       }
     );
+  }
+
+  // this method is called by the mappers/reducers of jobs launched by Hive.
+  private static Context createContext(Configuration conf) throws IOException {
+    // Create context needs to happen only when running in as a MapReduce job.
+    // In other cases, ContextManager will be initialized using saveContext method.
+
+    CConfiguration cConf = ConfigurationUtil.get(conf, Constants.Explore.CCONF_KEY, CConfCodec.INSTANCE);
+    Configuration hConf = ConfigurationUtil.get(conf, Constants.Explore.HCONF_KEY, HConfCodec.INSTANCE);
+
+    Injector injector = createInjector(cConf, hConf);
 
     ZKClientService zkClientService = injector.getInstance(ZKClientService.class);
     zkClientService.startAndWait();

@@ -22,13 +22,14 @@ import co.cask.cdap.common.logging.ComponentLoggingContext;
 import co.cask.cdap.common.logging.LoggingContext;
 import co.cask.cdap.common.logging.NamespaceLoggingContext;
 import co.cask.cdap.common.logging.ServiceLoggingContext;
-import co.cask.cdap.common.logging.SystemLoggingContext;
+import co.cask.cdap.common.namespace.NamespacedLocationFactory;
 import co.cask.cdap.logging.filter.AndFilter;
 import co.cask.cdap.logging.filter.Filter;
 import co.cask.cdap.logging.filter.MdcExpression;
 import co.cask.cdap.logging.filter.OrFilter;
 import co.cask.cdap.proto.Id;
 import co.cask.cdap.proto.ProgramType;
+import co.cask.cdap.proto.id.NamespaceId;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -36,6 +37,7 @@ import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -66,15 +68,26 @@ public final class LoggingContextHelper {
 
   private LoggingContextHelper() {}
 
-  public static String getNamespacedBaseDir(String logBaseDir, String logPartition) {
+  public static String getNamespacedBaseDir(NamespacedLocationFactory namespacedLocationFactory, String logBaseDir,
+                                            NamespaceId namespaceId) throws IOException {
     Preconditions.checkArgument(logBaseDir != null, "Log Base dir cannot be null");
-    Preconditions.checkArgument(logPartition != null, "Log partition cannot be null");
-    String [] partitions = logPartition.split(":");
-    Preconditions.checkArgument(partitions.length == 3,
-                                "Expected log partition to be in the format <ns>:<entity>:<sub-entity>");
-    // don't care about the app or the program, only need the namespace
-    GenericLoggingContext loggingContext = new GenericLoggingContext(partitions[0], partitions[1], partitions[2]);
-    return loggingContext.getNamespacedLogBaseDir(logBaseDir);
+    return namespacedLocationFactory.get(namespaceId.toId()).append(logBaseDir).toString();
+  }
+
+  /**
+   * Gives the {@link NamespaceId} for  the given logging context.
+   *
+   * @param loggingContext the {@link LoggingContext} whose namespace id needs to be found.
+   * @return {@link NamespaceId} for the given logging context
+   */
+  public static NamespaceId getNamespaceId(LoggingContext loggingContext) {
+    Preconditions.checkArgument(loggingContext.getSystemTagsMap().containsKey(NamespaceLoggingContext.TAG_NAMESPACE_ID),
+                                String.format("Failed to identify the namespace in the logging context '%s' since " +
+                                                "it does not contains a '%s'. LoggingContexts should have a " +
+                                                "namespace.", loggingContext.getSystemTagsMap(),
+                                              NamespaceLoggingContext.TAG_NAMESPACE_ID));
+    return new NamespaceId(loggingContext.getSystemTagsMap()
+                             .get(NamespaceLoggingContext.TAG_NAMESPACE_ID).getValue());
   }
 
   public static LoggingContext getLoggingContext(Map<String, String> tags) {
@@ -86,14 +99,11 @@ public final class LoggingContextHelper {
     String namespaceId = tags.get(NamespaceLoggingContext.TAG_NAMESPACE_ID);
     String applicationId = tags.get(ApplicationLoggingContext.TAG_APPLICATION_ID);
 
-    String systemId = tags.get(SystemLoggingContext.TAG_SYSTEM_ID);
     String componentId = tags.get(ComponentLoggingContext.TAG_COMPONENT_ID);
 
-    // No namespace id or application id present.
-    if (namespaceId == null || applicationId == null) {
-      if (systemId == null || componentId == null) {
-        throw new IllegalArgumentException("No namespace/application or system/component id present");
-      }
+    // No namespace id or either from application id or component id is not present
+    if (namespaceId == null || (applicationId == null && componentId == null)) {
+      throw new IllegalArgumentException("No namespace/application or system/component id present");
     }
 
     if (tags.containsKey(FlowletLoggingContext.TAG_FLOW_ID)) {
@@ -125,7 +135,7 @@ public final class LoggingContextHelper {
                                            tags.get(ApplicationLoggingContext.TAG_RUN_ID),
                                            tags.get(ApplicationLoggingContext.TAG_INSTANCE_ID));
     } else if (tags.containsKey(ServiceLoggingContext.TAG_SERVICE_ID)) {
-      return new ServiceLoggingContext(systemId, componentId,
+      return new ServiceLoggingContext(namespaceId, componentId,
                                        tags.get(ServiceLoggingContext.TAG_SERVICE_ID));
     } else if (tags.containsKey(WorkerLoggingContext.TAG_WORKER_ID)) {
       return new WorkerLoggingContext(namespaceId, applicationId, tags.get(WorkerLoggingContext.TAG_WORKER_ID),
@@ -186,12 +196,12 @@ public final class LoggingContextHelper {
 
   public static Filter createFilter(LoggingContext loggingContext) {
     if (loggingContext instanceof ServiceLoggingContext) {
-      String systemId = loggingContext.getSystemTagsMap().get(ServiceLoggingContext.TAG_SYSTEM_ID).getValue();
+      String systemId = loggingContext.getSystemTagsMap().get(ServiceLoggingContext.TAG_NAMESPACE_ID).getValue();
       String componentId = loggingContext.getSystemTagsMap().get(ServiceLoggingContext.TAG_COMPONENT_ID).getValue();
       String tagName = ServiceLoggingContext.TAG_SERVICE_ID;
       String entityId = loggingContext.getSystemTagsMap().get(ServiceLoggingContext.TAG_SERVICE_ID).getValue();
       return new AndFilter(
-        ImmutableList.of(new MdcExpression(ServiceLoggingContext.TAG_SYSTEM_ID, systemId),
+        ImmutableList.of(new MdcExpression(ServiceLoggingContext.TAG_NAMESPACE_ID, systemId),
                          new MdcExpression(ServiceLoggingContext.TAG_COMPONENT_ID, componentId),
                          new MdcExpression(tagName, entityId)));
     } else {

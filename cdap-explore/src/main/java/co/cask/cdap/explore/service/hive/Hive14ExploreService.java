@@ -58,8 +58,8 @@ public class Hive14ExploreService extends BaseHiveExploreService {
                               StreamAdmin streamAdmin, NamespaceQueryAdmin namespaceQueryAdmin,
                               SystemDatasetInstantiatorFactory datasetInstantiatorFactory,
                               ExploreTableNaming tableNaming) {
-    super(txClient, datasetFramework, cConf, hConf, previewsDir,
-          streamAdmin, namespaceQueryAdmin, datasetInstantiatorFactory, tableNaming);
+    super(txClient, datasetFramework, cConf, hConf, previewsDir, streamAdmin, namespaceQueryAdmin,
+          datasetInstantiatorFactory, tableNaming);
     // This config sets the time Hive CLI getOperationStatus method will wait for the status of
     // a running query.
     System.setProperty(HiveConf.ConfVars.HIVE_SERVER2_LONG_POLLING_TIMEOUT.toString(), "50");
@@ -91,7 +91,13 @@ public class Hive14ExploreService extends BaseHiveExploreService {
   }
 
   @Override
-  protected OperationHandle doExecute(SessionHandle sessionHandle, String statement)
+  protected OperationHandle executeSync(SessionHandle sessionHandle, String statement)
+    throws HiveSQLException, ExploreException {
+    return getCliService().executeStatement(sessionHandle, statement, new HashMap<String, String>());
+  }
+
+  @Override
+  protected OperationHandle executeAsync(SessionHandle sessionHandle, String statement)
     throws HiveSQLException, ExploreException {
     return getCliService().executeStatementAsync(sessionHandle, statement, new HashMap<String, String>());
   }

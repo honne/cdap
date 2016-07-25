@@ -170,7 +170,7 @@ public class AppLifecycleHttpHandler extends AbstractAppFabricHttpHandler {
                          @PathParam("namespace-id") String namespaceId,
                          @QueryParam("artifactName") String artifactName,
                          @QueryParam("artifactVersion") String artifactVersion)
-    throws NamespaceNotFoundException, BadRequestException {
+    throws Exception {
 
     Id.Namespace namespace = validateNamespace(namespaceId);
 
@@ -191,10 +191,24 @@ public class AppLifecycleHttpHandler extends AbstractAppFabricHttpHandler {
   public void getAppInfo(HttpRequest request, HttpResponder responder,
                          @PathParam("namespace-id") String namespaceId,
                          @PathParam("app-id") final String appId)
-    throws NamespaceNotFoundException, BadRequestException, ApplicationNotFoundException {
+    throws Exception {
 
     Id.Application applicationId = validateApplicationId(namespaceId, appId);
     responder.sendJson(HttpResponseStatus.OK, applicationLifecycleService.getAppDetail(applicationId));
+  }
+
+  /**
+   * Returns the plugins in the application.
+   */
+  @GET
+  @Path("/apps/{app-id}/plugins")
+  public void getPluginsInfo(HttpRequest request, HttpResponder responder,
+                         @PathParam("namespace-id") String namespaceId,
+                         @PathParam("app-id") final String appId)
+    throws NamespaceNotFoundException, BadRequestException, ApplicationNotFoundException {
+
+    Id.Application applicationId = validateApplicationId(namespaceId, appId);
+    responder.sendJson(HttpResponseStatus.OK, applicationLifecycleService.getPlugins(applicationId.toEntityId()));
   }
 
   /**

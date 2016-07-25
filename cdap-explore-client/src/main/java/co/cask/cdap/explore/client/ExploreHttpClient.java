@@ -18,6 +18,7 @@ package co.cask.cdap.explore.client;
 
 import co.cask.cdap.api.data.format.FormatSpecification;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.api.dataset.DatasetSpecification;
 import co.cask.cdap.api.dataset.lib.PartitionKey;
 import co.cask.cdap.api.dataset.lib.PartitionedFileSetArguments;
 import co.cask.cdap.common.conf.Constants;
@@ -33,6 +34,7 @@ import co.cask.cdap.explore.utils.TablesArgs;
 import co.cask.cdap.internal.io.SchemaTypeAdapter;
 import co.cask.cdap.proto.ColumnDesc;
 import co.cask.cdap.proto.Id;
+import co.cask.cdap.proto.NamespaceMeta;
 import co.cask.cdap.proto.QueryHandle;
 import co.cask.cdap.proto.QueryInfo;
 import co.cask.cdap.proto.QueryResult;
@@ -154,10 +156,27 @@ abstract class ExploreHttpClient implements Explore {
                                              key, datasetInstance.toString(), response));
   }
 
-  protected QueryHandle doEnableExploreDataset(Id.DatasetInstance datasetInstance) throws ExploreException {
-    HttpResponse response = doPost(String.format("namespaces/%s/data/explore/datasets/%s/enable",
+  protected QueryHandle doUpdateExploreDataset(Id.DatasetInstance datasetInstance,
+                                               DatasetSpecification oldSpec,
+                                               DatasetSpecification newSpec) throws ExploreException {
+    HttpResponse response = doPost(String.format("namespaces/%s/data/explore/datasets/%s/update",
                                                  datasetInstance.getNamespaceId(),
-                                                 datasetInstance.getId()), null, null);
+                                                 datasetInstance.getId()),
+                                   GSON.toJson(new UpdateExploreParameters(oldSpec, newSpec)), null);
+    if (response.getResponseCode() == HttpURLConnection.HTTP_OK) {
+      return QueryHandle.fromId(parseResponseAsMap(response, "handle"));
+    }
+    throw new ExploreException(String.format("Cannot update explore on dataset %s. Reason: %s",
+                                             datasetInstance.toString(), response));
+  }
+
+  protected QueryHandle doEnableExploreDataset(Id.DatasetInstance datasetInstance,
+                                               DatasetSpecification spec) throws ExploreException {
+    String body = spec == null ? null : GSON.toJson(new EnableExploreParameters(spec));
+    String endpoint = spec == null ? "enable" : "enable-internal";
+    HttpResponse response = doPost(String.format("namespaces/%s/data/explore/datasets/%s/%s",
+                                                 datasetInstance.getNamespaceId(),
+                                                 datasetInstance.getId(), endpoint), body, null);
     if (response.getResponseCode() == HttpURLConnection.HTTP_OK) {
       return QueryHandle.fromId(parseResponseAsMap(response, "handle"));
     }
@@ -387,8 +406,9 @@ abstract class ExploreHttpClient implements Explore {
   }
 
   @Override
-  public QueryHandle createNamespace(Id.Namespace namespace) throws ExploreException, SQLException {
-    HttpResponse response = doPut(String.format("data/explore/namespaces/%s", namespace.getId()), null, null);
+  public QueryHandle createNamespace(NamespaceMeta namespace) throws ExploreException, SQLException {
+    HttpResponse response = doPut(String.format("data/explore/namespaces/%s", namespace.getName()),
+                                  GSON.toJson(namespace), null);
     if (response.getResponseCode() == HttpURLConnection.HTTP_OK) {
       return QueryHandle.fromId(parseResponseAsMap(response, "handle"));
     }

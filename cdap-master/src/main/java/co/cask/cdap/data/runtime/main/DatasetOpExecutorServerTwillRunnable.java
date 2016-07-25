@@ -39,6 +39,8 @@ import co.cask.cdap.data.stream.StreamAdminModules;
 import co.cask.cdap.data.view.ViewAdminModules;
 import co.cask.cdap.data2.audit.AuditModule;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.DatasetOpExecutorService;
+import co.cask.cdap.data2.security.RemoteUGIProvider;
+import co.cask.cdap.data2.security.UGIProvider;
 import co.cask.cdap.explore.guice.ExploreClientModule;
 import co.cask.cdap.gateway.handlers.meta.RemoteSystemOperationsService;
 import co.cask.cdap.gateway.handlers.meta.RemoteSystemOperationsServiceModule;
@@ -49,13 +51,17 @@ import co.cask.cdap.metadata.MetadataService;
 import co.cask.cdap.metadata.MetadataServiceModule;
 import co.cask.cdap.metrics.guice.MetricsClientRuntimeModule;
 import co.cask.cdap.notifications.feeds.client.NotificationFeedClientModule;
-import co.cask.cdap.proto.Id;
+import co.cask.cdap.proto.id.NamespaceId;
+import co.cask.cdap.security.auth.context.AuthenticationContextModules;
+import co.cask.cdap.security.authorization.AuthorizationEnforcementModule;
+import co.cask.cdap.security.guice.SecureStoreModules;
 import co.cask.cdap.store.guice.NamespaceStoreModule;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Service;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Scopes;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.twill.api.TwillContext;
 import org.apache.twill.kafka.client.KafkaClientService;
@@ -64,16 +70,11 @@ import org.apache.twill.zookeeper.ZKClientService;
 import java.util.List;
 
 /**
- * Executes user code on behalf of a particular user inside
- * a container running as that user. For security.
+ * Executes user code on behalf of a particular user inside a YARN container, for security.
  */
 public class DatasetOpExecutorServerTwillRunnable extends AbstractMasterTwillRunnable {
 
-  // TODO: remove
-  public static final String DEFAULT_USER = "bob";
-
   private Injector injector;
-  private String user;
 
   public DatasetOpExecutorServerTwillRunnable(String name, String cConfName, String hConfName) {
     super(name, cConfName, hConfName);
@@ -81,8 +82,6 @@ public class DatasetOpExecutorServerTwillRunnable extends AbstractMasterTwillRun
 
   @Override
   protected void doInit(TwillContext context) {
-    this.user = DEFAULT_USER;
-
     CConfiguration cConf = getCConfiguration();
     Configuration hConf = getConfiguration();
 
@@ -92,7 +91,7 @@ public class DatasetOpExecutorServerTwillRunnable extends AbstractMasterTwillRun
     injector = createInjector(cConf, hConf);
 
     injector.getInstance(LogAppenderInitializer.class).initialize();
-    LoggingContextAccessor.setLoggingContext(new ServiceLoggingContext(Id.Namespace.SYSTEM.getId(),
+    LoggingContextAccessor.setLoggingContext(new ServiceLoggingContext(NamespaceId.SYSTEM.getNamespace(),
                                                                        Constants.Logging.COMPONENT_NAME,
                                                                        Constants.Service.DATASET_EXECUTOR));
   }
@@ -115,17 +114,21 @@ public class DatasetOpExecutorServerTwillRunnable extends AbstractMasterTwillRun
       new NamespaceClientRuntimeModule().getDistributedModules(),
       new NamespaceStoreModule().getDistributedModules(),
       new MetadataServiceModule(),
-      new AuthorizationModule(),
       new RemoteSystemOperationsServiceModule(),
       new ViewAdminModules().getDistributedModules(),
       new StreamAdminModules().getDistributedModules(),
       new NotificationFeedClientModule(),
       new AuditModule().getDistributedModules(),
       new EntityVerifierModule(),
+      new SecureStoreModules().getDistributedModules(),
+      new AuthorizationModule(),
+      new AuthorizationEnforcementModule().getDistributedModules(),
+      new AuthenticationContextModules().getProgramContainerModule(),
       new AbstractModule() {
         @Override
         protected void configure() {
           bind(Store.class).to(DefaultStore.class);
+          bind(UGIProvider.class).to(RemoteUGIProvider.class).in(Scopes.SINGLETON);
         }
       });
   }

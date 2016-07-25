@@ -17,11 +17,13 @@
 package co.cask.cdap.explore.client;
 
 import co.cask.cdap.api.data.format.FormatSpecification;
+import co.cask.cdap.api.dataset.DatasetSpecification;
 import co.cask.cdap.api.dataset.lib.PartitionKey;
 import co.cask.cdap.explore.service.ExploreException;
 import co.cask.cdap.explore.service.MetaDataInfo;
 import co.cask.cdap.proto.ColumnDesc;
 import co.cask.cdap.proto.Id;
+import co.cask.cdap.proto.NamespaceMeta;
 import co.cask.cdap.proto.QueryResult;
 import co.cask.cdap.proto.QueryStatus;
 import com.google.common.collect.ImmutableMap;
@@ -61,7 +63,18 @@ public class MockExploreClient extends AbstractIdleService implements ExploreCli
   }
 
   @Override
+  public ListenableFuture<Void> updateExploreDataset(Id.DatasetInstance datasetInstance,
+                                                     DatasetSpecification oldSpec, DatasetSpecification newSpec) {
+    return null;
+  }
+
+  @Override
   public ListenableFuture<Void> enableExploreDataset(Id.DatasetInstance datasetInstance) {
+    return null;
+  }
+
+  @Override
+  public ListenableFuture<Void> enableExploreDataset(Id.DatasetInstance datasetInstance, DatasetSpecification spec) {
     return null;
   }
 
@@ -168,7 +181,7 @@ public class MockExploreClient extends AbstractIdleService implements ExploreCli
   }
 
   @Override
-  public ListenableFuture<ExploreExecutionResult> addNamespace(Id.Namespace namespace) {
+  public ListenableFuture<ExploreExecutionResult> addNamespace(NamespaceMeta namespaceMeta) {
     return null;
   }
 

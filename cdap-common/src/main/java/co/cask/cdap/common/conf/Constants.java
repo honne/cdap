@@ -622,7 +622,7 @@ public final class Constants {
     public static final String ADDRESS = "log.saver.status.bind.address";
 
     public static final String SERVICE_DESCRIPTION = "Service to collect and store logs.";
-    public static final String MESSAGE_PROCESSORS =  "log.saver.message.processors";
+    public static final String MESSAGE_PROCESSOR_FACTORIES =  "log.saver.message.processor.factories";
   }
 
   /**
@@ -771,9 +771,9 @@ public final class Constants {
       public static final String DEFAULT_SSL_KEYSTORE_TYPE = "JKS";
     }
 
-    /** Path to the Kerberos keytab file used by CDAP */
+    /** Path to the Kerberos keytab file used by CDAP master */
     public static final String CFG_CDAP_MASTER_KRB_KEYTAB_PATH = "cdap.master.kerberos.keytab";
-    /** Kerberos principal used by CDAP */
+    /** Kerberos principal used by CDAP master */
     public static final String CFG_CDAP_MASTER_KRB_PRINCIPAL = "cdap.master.kerberos.principal";
   }
 

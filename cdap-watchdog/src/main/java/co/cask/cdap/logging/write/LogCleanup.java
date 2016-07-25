@@ -17,6 +17,9 @@
 package co.cask.cdap.logging.write;
 
 import co.cask.cdap.common.io.Locations;
+import co.cask.cdap.common.io.RootLocationFactory;
+import co.cask.cdap.data2.security.Impersonator;
+import co.cask.cdap.proto.id.NamespaceId;
 import com.google.common.base.Throwables;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
@@ -26,7 +29,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 
 /**
  * Handles log file retention.
@@ -35,18 +41,21 @@ public final class LogCleanup implements Runnable {
   private static final Logger LOG = LoggerFactory.getLogger(LogCleanup.class);
 
   private final FileMetaDataManager fileMetaDataManager;
-  private final Location rootDir;
-  private final String namespacesDir;
+  private final RootLocationFactory rootLocationFactory;
   private final long retentionDurationMs;
+  private final Impersonator impersonator;
 
-  public LogCleanup(FileMetaDataManager fileMetaDataManager, Location rootDir, String namespacesDir,
-                    long retentionDurationMs) {
+  // this class takes a root location factory because for custom mapped namespaces the namespace is mapped to a
+  // location from the root of system and the logs are generated in the custom mapped location. To clean up  these
+  // locations we need to work with root based location factory
+  public LogCleanup(FileMetaDataManager fileMetaDataManager, RootLocationFactory rootLocationFactory,
+                    long retentionDurationMs, Impersonator impersonator) {
     this.fileMetaDataManager = fileMetaDataManager;
-    this.rootDir = rootDir;
-    this.namespacesDir = namespacesDir;
+    this.rootLocationFactory = rootLocationFactory;
     this.retentionDurationMs = retentionDurationMs;
+    this.impersonator = impersonator;
 
-    LOG.info("Log retention duration = {} ms", retentionDurationMs);
+    LOG.debug("Log retention duration = {} ms", retentionDurationMs);
   }
 
   @Override
@@ -55,35 +64,52 @@ public final class LogCleanup implements Runnable {
     try {
       long tillTime = System.currentTimeMillis() - retentionDurationMs;
       final SetMultimap<String, Location> parentDirs = HashMultimap.create();
+      final Map<String, NamespaceId> namespacedLogBaseDirMap = new HashMap<>();
       fileMetaDataManager.cleanMetaData(tillTime,
                                         new FileMetaDataManager.DeleteCallback() {
                                           @Override
-                                          public void handle(Location location, String namespacedLogBaseDir) {
+                                          public void handle(NamespaceId namespaceId, final Location location,
+                                                             final String namespacedLogBaseDir) {
                                             try {
-                                              if (location.exists()) {
-                                                LOG.info("Deleting log file {}", location);
-                                                location.delete();
-                                              }
-                                              parentDirs.put(namespacedLogBaseDir, getParent(location));
-                                            } catch (IOException e) {
+                                              impersonator.doAs(namespaceId, new Callable<Void>() {
+                                                @Override
+                                                public Void call() throws Exception {
+                                                  if (location.exists()) {
+                                                    LOG.info("Deleting log file {}", location);
+                                                    location.delete();
+                                                    parentDirs.put(namespacedLogBaseDir, getParent(location));
+                                                  }
+                                                  return null;
+                                                }
+                                              });
+                                              namespacedLogBaseDirMap.put(namespacedLogBaseDir, namespaceId);
+                                            } catch (Exception e) {
                                               LOG.error("Got exception when deleting path {}", location, e);
                                               throw Throwables.propagate(e);
                                             }
                                           }
                                         });
       // Delete any empty parent dirs
-      for (String namespacedLogBaseDir : parentDirs.keySet()) {
-        Set<Location> locations = parentDirs.get(namespacedLogBaseDir);
-        for (Location location : locations) {
-          deleteEmptyDir(namespacedLogBaseDir, location);
-        }
+      for (final String namespacedLogBaseDir : parentDirs.keySet()) {
+        // this ensures that we only do doAs which will make an RPC call only once for a namespace
+        NamespaceId namespaceId = namespacedLogBaseDirMap.get(namespacedLogBaseDir);
+        impersonator.doAs(namespaceId, new Callable<Void>() {
+          @Override
+          public Void call() throws Exception {
+            Set<Location> locations = parentDirs.get(namespacedLogBaseDir);
+            for (Location location : locations) {
+              deleteEmptyDir(namespacedLogBaseDir, location);
+            }
+            return null;
+          }
+        });
       }
     } catch (Throwable e) {
       LOG.error("Got exception when cleaning up. Will try again later.", e);
     }
   }
 
-  Location getParent(Location location) {
+  private Location getParent(Location location) {
     Location parent = Locations.getParent(location);
     return (parent == null) ? location : parent;
   }
@@ -92,11 +118,10 @@ public final class LogCleanup implements Runnable {
    * For the specified directory to be deleted, finds its namespaced log location, then deletes
    * @param namespacedLogBaseDir namespaced log base dir without the root dir prefixed
    * @param dir dir to delete
-   * @throws IOException
    */
-  void deleteEmptyDir(String namespacedLogBaseDir, Location dir) throws IOException {
+  void deleteEmptyDir(String namespacedLogBaseDir, Location dir) {
     LOG.debug("Got path {}", dir);
-    Location namespacedLogBaseLocation = rootDir.append(namespacesDir).append(namespacedLogBaseDir);
+    Location namespacedLogBaseLocation = rootLocationFactory.create(namespacedLogBaseDir);
     deleteEmptyDirsInNamespace(namespacedLogBaseLocation, dir);
   }
 

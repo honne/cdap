@@ -22,13 +22,17 @@ import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValueTable;
 import co.cask.cdap.api.dataset.table.Table;
 import co.cask.cdap.api.workflow.NodeStatus;
+import co.cask.cdap.api.workflow.WorkflowToken;
 import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.datapipeline.mock.NaiveBayesClassifier;
 import co.cask.cdap.datapipeline.mock.NaiveBayesTrainer;
 import co.cask.cdap.datapipeline.mock.SpamMessage;
 import co.cask.cdap.etl.api.batch.SparkCompute;
 import co.cask.cdap.etl.api.batch.SparkSink;
+import co.cask.cdap.etl.batch.ETLWorkflow;
 import co.cask.cdap.etl.mock.action.MockAction;
+import co.cask.cdap.etl.mock.batch.MockRuntimeDatasetSink;
+import co.cask.cdap.etl.mock.batch.MockRuntimeDatasetSource;
 import co.cask.cdap.etl.mock.batch.MockSink;
 import co.cask.cdap.etl.mock.batch.MockSource;
 import co.cask.cdap.etl.mock.batch.NodeStatesAction;
@@ -44,6 +48,9 @@ import co.cask.cdap.etl.proto.v2.ETLBatchConfig;
 import co.cask.cdap.etl.proto.v2.ETLPlugin;
 import co.cask.cdap.etl.proto.v2.ETLStage;
 import co.cask.cdap.proto.Id;
+import co.cask.cdap.proto.ProgramRunStatus;
+import co.cask.cdap.proto.RunRecord;
+import co.cask.cdap.proto.WorkflowTokenDetail;
 import co.cask.cdap.proto.artifact.AppRequest;
 import co.cask.cdap.proto.artifact.ArtifactSummary;
 import co.cask.cdap.proto.id.ArtifactId;
@@ -64,6 +71,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -99,6 +107,67 @@ public class DataPipelineTest extends HydratorTestBase {
   @After
   public void cleanupTest() throws Exception {
     getMetricsManager().resetAll();
+  }
+
+  @Test
+  public void testPipelineWithAllActions() throws Exception {
+    String actionTable = "actionTable";
+    String action1RowKey = "action1.row";
+    String action1ColumnKey = "action1.column";
+    String action1Value = "action1.value";
+    String action2RowKey = "action2.row";
+    String action2ColumnKey = "action2.column";
+    String action2Value = "action2.value";
+    String action3RowKey = "action3.row";
+    String action3ColumnKey = "action3.column";
+    String action3Value = "action3.value";
+
+    ETLBatchConfig etlConfig = ETLBatchConfig.builder("* * * * *")
+      .addStage(new ETLStage("action1", MockAction.getPlugin(actionTable, action1RowKey, action1ColumnKey,
+                                                             action1Value)))
+      .addStage(new ETLStage("action2", MockAction.getPlugin(actionTable, action2RowKey, action2ColumnKey,
+                                                             action2Value)))
+      .addStage(new ETLStage("action3", MockAction.getPlugin(actionTable, action3RowKey, action3ColumnKey,
+                                                             action3Value)))
+      .addConnection("action1", "action2")
+      .addConnection("action1", "action3")
+      .setEngine(Engine.MAPREDUCE)
+      .build();
+
+    AppRequest<ETLBatchConfig> appRequest = new AppRequest<>(APP_ARTIFACT, etlConfig);
+    Id.Application appId = Id.Application.from(Id.Namespace.DEFAULT, "MyActionOnlyApp");
+    ApplicationManager appManager = deployApplication(appId, appRequest);
+
+    WorkflowManager workflowManager = appManager.getWorkflowManager(SmartWorkflow.NAME);
+    workflowManager.start();
+    workflowManager.waitForFinish(5, TimeUnit.MINUTES);
+
+    DataSetManager<Table> actionTableDS = getDataset(actionTable);
+    Assert.assertEquals(action1Value, MockAction.readOutput(actionTableDS, action1RowKey, action1ColumnKey));
+    Assert.assertEquals(action2Value, MockAction.readOutput(actionTableDS, action2RowKey, action2ColumnKey));
+    Assert.assertEquals(action3Value, MockAction.readOutput(actionTableDS, action3RowKey, action3ColumnKey));
+
+    List<RunRecord> history = workflowManager.getHistory(ProgramRunStatus.COMPLETED);
+    Assert.assertEquals(1, history.size());
+    String runId = history.get(0).getPid();
+
+    WorkflowTokenDetail tokenDetail = workflowManager.getToken(runId, WorkflowToken.Scope.USER,
+                                                               action1RowKey + action1ColumnKey);
+
+    validateToken(tokenDetail, action1RowKey + action1ColumnKey, action1Value);
+
+    tokenDetail = workflowManager.getToken(runId, WorkflowToken.Scope.USER, action2RowKey + action2ColumnKey);
+    validateToken(tokenDetail, action2RowKey + action2ColumnKey, action2Value);
+
+    tokenDetail = workflowManager.getToken(runId, WorkflowToken.Scope.USER, action3RowKey + action3ColumnKey);
+    validateToken(tokenDetail, action3RowKey + action3ColumnKey, action3Value);
+  }
+
+  private void validateToken(WorkflowTokenDetail tokenDetail, String key, String value) {
+    List<WorkflowTokenDetail.NodeValueDetail> nodeValueDetails = tokenDetail.getTokenData().get(key);
+    // Only one node should have corresponding key
+    Assert.assertEquals(1, nodeValueDetails.size());
+    Assert.assertEquals(value, nodeValueDetails.get(0).getValue());
   }
 
   @Test
@@ -1140,6 +1209,52 @@ public class DataPipelineTest extends HydratorTestBase {
 
     validateMetric(3, appId, outerJoinName + ".records.out");
     validateMetric(3, appId, sinkName + ".records.in");
+  }
+
+  @Test
+  public void testSecureStoreMacroPipelines() throws Exception {
+    testSecureStorePipeline(Engine.MAPREDUCE, "mr");
+    testSecureStorePipeline(Engine.SPARK, "spark");
+  }
+
+  /**
+   * Tests the secure storage macro function in a pipelines by creating datasets from the secure store data.
+   */
+  private void testSecureStorePipeline(Engine engine, String prefix) throws Exception {
+    /*
+     * Trivial pipeline from batch source to batch sink.
+     *
+     * source --------- sink
+     */
+    ETLBatchConfig etlConfig = ETLBatchConfig.builder("* * * * *")
+      .addStage(new ETLStage("source", MockRuntimeDatasetSource.getPlugin("input", "${secure(" + prefix + "Source)}")))
+      .addStage(new ETLStage("sink", MockRuntimeDatasetSink.getPlugin("output", "${secure(" + prefix + "Sink)}")))
+      .addConnection("source", "sink")
+      .setEngine(engine)
+      .build();
+
+    // place dataset names into secure storage
+    getSecureStoreManager().putSecureData("default", prefix + "Source", (prefix + "MockSecureSourceDataset").getBytes(),
+                                          "secure source dataset name", new HashMap<String, String>());
+    getSecureStoreManager().putSecureData("default", prefix + "Sink", (prefix + "MockSecureSinkDataset").getBytes(),
+                                          "secure dataset name", new HashMap<String, String>());
+
+    AppRequest<ETLBatchConfig> appRequest = new AppRequest<>(APP_ARTIFACT, etlConfig);
+    Id.Application appId = Id.Application.from(Id.Namespace.DEFAULT, "App");
+    ApplicationManager appManager = deployApplication(appId, appRequest);
+
+    WorkflowManager workflowManager = appManager.getWorkflowManager(SmartWorkflow.NAME);
+
+    // make sure the datasets don't exist beforehand
+    Assert.assertNull(getDataset(prefix + "MockSecureSourceDataset").get());
+    Assert.assertNull(getDataset(prefix + "MockSecureSinkDataset").get());
+
+    workflowManager.start();
+    workflowManager.waitForFinish(5, TimeUnit.MINUTES);
+
+    // now the datasets should exist
+    Assert.assertNotNull(getDataset(prefix + "MockSecureSourceDataset").get());
+    Assert.assertNotNull(getDataset(prefix + "MockSecureSinkDataset").get());
   }
 
   private void validateMetric(long expected, Id.Application appId,

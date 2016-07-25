@@ -22,7 +22,7 @@
 
   <groupId>co.cask.cdap</groupId>
   <artifactId>cdap</artifactId>
-  <version>3.5.0-SNAPSHOT</version>
+  <version>3.6.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Cask Data Application Platform (CDAP)</name>
   <description>Data Application Platform for Hadoop</description>
@@ -134,7 +134,7 @@
     <shiro.version>1.2.1</shiro.version>
     <slf4j.version>1.7.5</slf4j.version>
     <tephra.version>0.7.1</tephra.version>
-    <thrift.version>0.9.0</thrift.version>
+    <thrift.version>0.9.3</thrift.version>
     <twill.version>0.7.0-incubating</twill.version>
     <unboundid.version>2.3.6</unboundid.version>
     <zookeeper.version>3.4.5</zookeeper.version>
@@ -2459,6 +2459,7 @@
         <module>cdap-explore-jdbc</module>
         <module>cdap-explore</module>
         <module>cdap-unit-test</module>
+        <module>cdap-kms</module>
         <module>cdap-master</module>
         <module>cdap-proto</module>
         <module>cdap-notifications</module>

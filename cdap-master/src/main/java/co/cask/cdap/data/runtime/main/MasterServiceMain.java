@@ -46,6 +46,7 @@ import co.cask.cdap.data.stream.StreamAdminModules;
 import co.cask.cdap.data.view.ViewAdminModules;
 import co.cask.cdap.data2.audit.AuditModule;
 import co.cask.cdap.data2.datafabric.dataset.service.DatasetService;
+import co.cask.cdap.data2.transaction.queue.QueueConstants;
 import co.cask.cdap.data2.util.hbase.ConfigurationTable;
 import co.cask.cdap.data2.util.hbase.HBaseTableUtil;
 import co.cask.cdap.data2.util.hbase.HBaseTableUtilFactory;
@@ -63,6 +64,7 @@ import co.cask.cdap.notifications.feeds.guice.NotificationFeedServiceRuntimeModu
 import co.cask.cdap.notifications.guice.NotificationServiceRuntimeModule;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.security.TokenSecureStoreUpdater;
+import co.cask.cdap.security.authorization.AuthorizationEnforcementModule;
 import co.cask.cdap.security.authorization.AuthorizerInstantiator;
 import co.cask.cdap.store.guice.NamespaceStoreModule;
 import com.google.common.annotations.VisibleForTesting;
@@ -81,9 +83,16 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileAlreadyExistsException;
+import org.apache.hadoop.fs.FileContext;
+import org.apache.hadoop.fs.ParentNotDirectoryException;
+import org.apache.hadoop.fs.UnsupportedFileSystemException;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.security.User;
+import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.twill.api.ElectionHandler;
@@ -108,6 +117,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
@@ -180,6 +190,7 @@ public class MasterServiceMain extends DaemonMain {
     this.logAppenderInitializer = injector.getInstance(LogAppenderInitializer.class);
     this.zkClient = injector.getInstance(ZKClientService.class);
     this.leaderElection = createLeaderElection();
+
     // leader election will normally stay running. Will only stop if there was some issue starting up.
     this.leaderElection.addListener(new ServiceListenerAdapter() {
       @Override
@@ -209,7 +220,9 @@ public class MasterServiceMain extends DaemonMain {
   @Override
   public void start() {
     logAppenderInitializer.initialize();
-
+    createDirectory("twill");
+    createDirectory(cConf.get(QueueConstants.ConfigKeys.QUEUE_TABLE_COPROCESSOR_DIR,
+                              QueueConstants.DEFAULT_QUEUE_TABLE_COPROCESSOR_DIR));
     createSystemHBaseNamespace();
     updateConfigurationTable();
 
@@ -219,6 +232,58 @@ public class MasterServiceMain extends DaemonMain {
                                                   KeeperException.NodeExistsException.class, null));
 
     leaderElection.startAndWait();
+  }
+
+  /**
+   * CDAP-6644 for secure impersonation to work,
+   * we want other users to be able to write to the "path" directory,
+   * currently only cdap.user has read-write permissions while other users can only read the "/cdap/{path}" dir,
+   * we want to let others to be able to write to "path" directory, till we have a better solution.
+   */
+  private void createDirectory(String path) {
+    try {
+      String namespacedPath = String.format("/%s/%s", cConf.get(Constants.ROOT_NAMESPACE), path);
+      FileContext fileContext = FileContext.getFileContext(hConf);
+      createDirectory(fileContext, namespacedPath);
+    }  catch (UnsupportedFileSystemException e) {
+      LOG.error("Unsupported FileSystem Exception while trying to create directory", e);
+    }
+  }
+
+  private void createDirectory(FileContext fileContext, String path) {
+    try {
+      org.apache.hadoop.fs.Path fPath = new org.apache.hadoop.fs.Path(path);
+      boolean dirExists = checkDirectoryExists(fileContext, fPath);
+      if (!dirExists) {
+        FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
+        // file context does ( permission AND  (NOT of umask) ) and uses that as permission, by default umask is 022,
+        // if we want 777 permission, we have to set umask to 000
+        fileContext.setUMask(new FsPermission(FsAction.NONE, FsAction.NONE, FsAction.NONE));
+        fileContext.mkdir(fPath, permission, false);
+      }
+    } catch (FileAlreadyExistsException e) {
+      // should not happen as we create only if dir exists
+    } catch (AccessControlException | ParentNotDirectoryException | FileNotFoundException e) {
+      // just log the exception
+      LOG.error("Exception while trying to create directory at {}", path, e);
+    }  catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  private boolean checkDirectoryExists(FileContext fileContext, org.apache.hadoop.fs.Path path) throws IOException {
+    if (fileContext.util().exists(path)) {
+      // dir exists
+      // check permissions
+      FsAction action =
+        fileContext.getFileStatus(path).getPermission().getOtherAction();
+      if (!action.implies(FsAction.WRITE)) {
+        LOG.error("Directory {} is not writable for others, If you are using secure impersonation, " +
+                    "make this directory writable for others, else you can ignore this message.", path);
+      }
+      return true;
+    }
+    return false;
   }
 
   @Override
@@ -436,6 +501,7 @@ public class MasterServiceMain extends DaemonMain {
       new NamespaceStoreModule().getDistributedModules(),
       new AuditModule().getDistributedModules(),
       new AuthorizationModule(),
+      new AuthorizationEnforcementModule().getDistributedModules(),
       new TwillModule(),
       new ServiceStoreModules().getDistributedModules(),
       new AppFabricServiceRuntimeModule().getDistributedModules(),

@@ -25,13 +25,15 @@ import co.cask.cdap.common.discovery.EndpointStrategy;
 import co.cask.cdap.common.discovery.RandomEndpointStrategy;
 import co.cask.cdap.common.guice.ConfigModule;
 import co.cask.cdap.common.guice.DiscoveryRuntimeModule;
-import co.cask.cdap.common.guice.LocationUnitTestModule;
+import co.cask.cdap.common.guice.NonCustomLocationUnitTestModule;
 import co.cask.cdap.common.namespace.guice.NamespaceClientRuntimeModule;
 import co.cask.cdap.data.runtime.DataFabricModules;
 import co.cask.cdap.data.runtime.DataSetServiceModules;
 import co.cask.cdap.data.runtime.DataSetsModules;
 import co.cask.cdap.data2.datafabric.dataset.service.DatasetService;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.DatasetOpExecutor;
+import co.cask.cdap.data2.security.UGIProvider;
+import co.cask.cdap.data2.security.UnsupportedUGIProvider;
 import co.cask.cdap.explore.guice.ExploreClientModule;
 import co.cask.cdap.gateway.handlers.log.MockLogReader;
 import co.cask.cdap.internal.app.store.DefaultStore;
@@ -39,6 +41,9 @@ import co.cask.cdap.logging.read.LogReader;
 import co.cask.cdap.metrics.guice.MetricsClientRuntimeModule;
 import co.cask.cdap.metrics.guice.MetricsHandlerModule;
 import co.cask.cdap.metrics.query.MetricsQueryService;
+import co.cask.cdap.security.auth.context.AuthenticationContextModules;
+import co.cask.cdap.security.authorization.AuthorizationEnforcementModule;
+import co.cask.cdap.security.authorization.AuthorizationTestModule;
 import co.cask.tephra.TransactionManager;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ObjectArrays;
@@ -54,10 +59,12 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicHeader;
+import org.apache.twill.discovery.Discoverable;
 import org.apache.twill.discovery.DiscoveryServiceClient;
 import org.apache.twill.filesystem.LocationFactory;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.rules.TemporaryFolder;
 
@@ -96,8 +103,6 @@ public abstract class MetricsSuiteTestBase {
   protected static MetricStore metricStore;
   protected static LogReader logReader;
 
-  private static Injector injector;
-
   @BeforeClass
   public static void beforeClass() throws Exception {
     if (!runBefore) {
@@ -112,7 +117,7 @@ public abstract class MetricsSuiteTestBase {
     conf.setBoolean(Constants.Metrics.CONFIG_AUTHENTICATION_REQUIRED, true);
     conf.set(Constants.Metrics.CLUSTER_NAME, CLUSTER);
 
-    injector = startMetricsService(conf);
+    Injector injector = startMetricsService(conf);
     store = injector.getInstance(Store.class);
     locationFactory = injector.getInstance(LocationFactory.class);
     metricStore = injector.getInstance(MetricStore.class);
@@ -137,7 +142,7 @@ public abstract class MetricsSuiteTestBase {
   public static Injector startMetricsService(CConfiguration conf) {
     Injector injector = Guice.createInjector(Modules.override(
       new ConfigModule(conf),
-      new LocationUnitTestModule().getModule(),
+      new NonCustomLocationUnitTestModule().getModule(),
       new DiscoveryRuntimeModule().getInMemoryModules(),
       new MetricsHandlerModule(),
       new MetricsClientRuntimeModule().getInMemoryModules(),
@@ -145,12 +150,16 @@ public abstract class MetricsSuiteTestBase {
       new DataSetsModules().getStandaloneModules(),
       new DataSetServiceModules().getInMemoryModules(),
       new ExploreClientModule(),
-      new NamespaceClientRuntimeModule().getInMemoryModules()
+      new NamespaceClientRuntimeModule().getInMemoryModules(),
+      new AuthorizationTestModule(),
+      new AuthorizationEnforcementModule().getInMemoryModules(),
+      new AuthenticationContextModules().getMasterModule()
     ).with(new AbstractModule() {
       @Override
       protected void configure() {
         bind(LogReader.class).to(MockLogReader.class).in(Scopes.SINGLETON);
         bind(Store.class).to(DefaultStore.class);
+        bind(UGIProvider.class).to(UnsupportedUGIProvider.class);
       }
     }));
 
@@ -176,7 +185,9 @@ public abstract class MetricsSuiteTestBase {
 
     EndpointStrategy metricsEndPoints = new RandomEndpointStrategy(discoveryClient.discover(Constants.Service.METRICS));
 
-    port = metricsEndPoints.pick(1L, TimeUnit.SECONDS).getSocketAddress().getPort();
+    Discoverable discoverable = metricsEndPoints.pick(1L, TimeUnit.SECONDS);
+    Assert.assertNotNull("Could not discover metrics service", discoverable);
+    port = discoverable.getSocketAddress().getPort();
 
     return injector;
   }

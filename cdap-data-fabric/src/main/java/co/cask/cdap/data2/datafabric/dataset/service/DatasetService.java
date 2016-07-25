@@ -22,12 +22,11 @@ import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.discovery.ResolvingDiscoverable;
 import co.cask.cdap.common.http.CommonNettyHttpServiceBuilder;
 import co.cask.cdap.common.metrics.MetricsReporterHook;
-import co.cask.cdap.common.namespace.NamespaceQueryAdmin;
-import co.cask.cdap.common.namespace.NamespacedLocationFactory;
 import co.cask.cdap.common.service.UncaughtExceptionIdleService;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.DatasetOpExecutor;
 import co.cask.cdap.data2.datafabric.dataset.type.DatasetTypeManager;
 import co.cask.cdap.data2.metrics.DatasetMetricsReporter;
+import co.cask.cdap.security.authorization.AuthorizationEnforcementService;
 import co.cask.http.NettyHttpService;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
@@ -63,6 +62,7 @@ public class DatasetService extends AbstractExecutionThreadService {
   private final DatasetOpExecutor opExecutorClient;
   private final Set<DatasetMetricsReporter> metricReporters;
   private final DatasetTypeManager typeManager;
+  private final AuthorizationEnforcementService authorizationEnforcementService;
 
   private Cancellable cancelDiscovery;
   private Cancellable opExecutorServiceWatch;
@@ -71,19 +71,18 @@ public class DatasetService extends AbstractExecutionThreadService {
 
   @Inject
   public DatasetService(CConfiguration cConf,
-                        NamespacedLocationFactory namespacedLocationFactory,
                         DiscoveryService discoveryService,
                         DiscoveryServiceClient discoveryServiceClient,
                         DatasetTypeManager typeManager,
                         MetricsCollectionService metricsCollectionService,
                         DatasetOpExecutor opExecutorClient,
                         Set<DatasetMetricsReporter> metricReporters,
+                        DatasetTypeService datasetTypeService,
                         DatasetInstanceService datasetInstanceService,
-                        NamespaceQueryAdmin namespaceQueryAdmin) throws Exception {
-
+                        AuthorizationEnforcementService authorizationEnforcementService) throws Exception {
     this.typeManager = typeManager;
-    DatasetTypeHandler datasetTypeHandler = new DatasetTypeHandler(typeManager, cConf, namespacedLocationFactory,
-                                                                   namespaceQueryAdmin);
+    this.authorizationEnforcementService = authorizationEnforcementService;
+    DatasetTypeHandler datasetTypeHandler = new DatasetTypeHandler(datasetTypeService);
     DatasetInstanceHandler datasetInstanceHandler = new DatasetInstanceHandler(datasetInstanceService);
     NettyHttpService.Builder builder = new CommonNettyHttpServiceBuilder(cConf);
     builder.addHttpHandlers(ImmutableList.of(datasetTypeHandler,
@@ -117,6 +116,7 @@ public class DatasetService extends AbstractExecutionThreadService {
     typeManager.startAndWait();
     opExecutorClient.startAndWait();
     httpService.startAndWait();
+    authorizationEnforcementService.startAndWait();
 
     // setting watch for ops executor service that we need to be running to operate correctly
     ServiceDiscovered discover = discoveryServiceClient.discover(Constants.Service.DATASET_EXECUTOR);
@@ -208,6 +208,8 @@ public class DatasetService extends AbstractExecutionThreadService {
     for (DatasetMetricsReporter metricsReporter : metricReporters) {
       metricsReporter.stop();
     }
+
+    authorizationEnforcementService.stopAndWait();
 
     if (opExecutorServiceWatch != null) {
       opExecutorServiceWatch.cancel();

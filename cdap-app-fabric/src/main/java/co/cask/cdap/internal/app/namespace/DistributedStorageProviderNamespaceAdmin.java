@@ -46,7 +46,6 @@ public final class DistributedStorageProviderNamespaceAdmin extends AbstractStor
   private final Configuration hConf;
   private final HBaseTableUtil tableUtil;
   private final NamespaceQueryAdmin namespaceQueryAdmin;
-  private HBaseAdmin hBaseAdmin;
 
   @Inject
   DistributedStorageProviderNamespaceAdmin(CConfiguration cConf,
@@ -66,14 +65,20 @@ public final class DistributedStorageProviderNamespaceAdmin extends AbstractStor
     // TODO: CDAP-1519: Create base directory for filesets under namespace home
     // create HBase namespace
     String hbaseNamespace = tableUtil.getHBaseNamespace(namespaceMeta);
-    if (Strings.isNullOrEmpty(namespaceMeta.getConfig().getHbaseNamespace())) {
-      tableUtil.createNamespaceIfNotExists(getAdmin(), hbaseNamespace);
-      return;
-    }
-
-    if (!tableUtil.hasNamespace(getAdmin(), hbaseNamespace)) {
-      throw new IOException(String.format("Custom mapped HBase namespace doesn't exist %s for namespace %s",
-                                          hbaseNamespace, namespaceMeta.getName()));
+    try (HBaseAdmin admin = new HBaseAdmin(hConf)) {
+      if (Strings.isNullOrEmpty(namespaceMeta.getConfig().getHbaseNamespace())) {
+        try {
+          tableUtil.createNamespaceIfNotExists(admin, hbaseNamespace);
+        } catch (IOException e) {
+          // if we failed to create a namespace in hbase then do clean up for above creations
+          super.delete(namespaceMeta.getNamespaceId());
+          throw e;
+        }
+      }
+      if (!tableUtil.hasNamespace(admin, hbaseNamespace)) {
+        throw new IOException(String.format("Custom mapped HBase namespace doesn't exist %s for namespace %s",
+                                            hbaseNamespace, namespaceMeta.getName()));
+      }
     }
   }
 
@@ -93,19 +98,14 @@ public final class DistributedStorageProviderNamespaceAdmin extends AbstractStor
     if (Strings.isNullOrEmpty(namespaceConfig.getHbaseNamespace())) {
       // delete HBase namespace
       String namespace = tableUtil.getHBaseNamespace(namespaceId);
-      tableUtil.deleteNamespaceIfExists(getAdmin(), namespace);
+      try (HBaseAdmin admin = new HBaseAdmin(hConf)) {
+        tableUtil.deleteNamespaceIfExists(admin, namespace);
+      }
     } else {
       // custom namespace mapping is set for HBase, hence don't do anything during delete since the lifecycle of the
       // namespace will be managed by the user
       LOG.debug("Custom HBase mapping {} was found while deleting {}. Hence skipping deletion of HBase namespace",
                 namespaceConfig.getHbaseNamespace(), namespaceId);
     }
-  }
-
-  private HBaseAdmin getAdmin() throws IOException {
-    if (hBaseAdmin == null) {
-      hBaseAdmin = new HBaseAdmin(hConf);
-    }
-    return hBaseAdmin;
   }
 }
