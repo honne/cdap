@@ -48,7 +48,7 @@ Pipelines published using command line tools are visible within both CDAP and Hy
 can be cloned and edited using Hydrator Studio.
 
 **Note:** Unlike many editors, Hydrator Studio does not allow draft pipelines to be published
-"on top of" existing, published pipelines, as this could invalidate existing logs, metrics,
+"on top of" existing, published pipelines, as this would invalidate existing logs, metrics,
 and datasets. Instead, it requires you to create a new name for any newly-published pipelines.
 
 
@@ -322,11 +322,11 @@ expecting that it would be replaced with::
 
   my-demo-host.example.com:9991
 
-The order of precedence (from highest to lowest) for resolving macros is:
+The order of precedence (from highest to lowest) for resolving macros is::
 
-  workflow token | runtime arguments | preference
+  <workflow-token> | <runtime-arguments> | <preferences>
   
-This order is used so that the most volatile source (the workflow tokens) takes precedence.
+This order is used so that the most volatile source (the workflow token) takes precedence.
 
 Information on setting preferences and runtime arguments is in the :ref:`CDAP
 Administration Manual, Preferences <preferences>`. These can be set with the HTTP

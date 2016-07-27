@@ -21,50 +21,81 @@ control and monitoring of the metrics, logs, and other runtime information. The 
 can also be run directly in CDAP with tools such as the CDAP UI, the CDAP CLI, or command
 line tools.
 
-Though the typical uses of pipelines vary from ETL (extract-transform-load) of data to
-sentiment analysis through to the preparation of daily aggregations and reports, Hydrator
-can be adapted to an increasing number of situations and requirements.
-
 Pipelines
 =========
 Pipelines are applications |---| specifically for the processing of data flows |---|
 created from artifacts. 
 
-An **artifact** is an "application template"; an application is created by CDAP by using a
-configuration file that defines the desired application, along with the artifacts
-specified inside the configuration. 
+An **artifact** is an "application template". A pipeline application is created by CDAP by
+using a **configuration file** that defines the desired application, along with whichever artifacts are
+specified inside the configuration. Artifacts for creating data pipelines are supplied
+with CDAP.
 
-Basic artifacts for creating data pipelines are supplied with CDAP.
-
-Types of Pipelines
+Stages and Plugins
 ------------------
-The data flows of a pipeline can be either batch or real-time, and a variety of
-processing paradigms (MapReduce, Spark, etc.) can be used.
-
-Batch applications can be scheduled to run periodically using a cron expression and can
-read data from batch sources using a MapReduce job. The batch application then performs
-any of a number of optional transformations before writing to one or more batch sinks.
-
-Real-time applications are designed to poll sources periodically to fetch the data,
-perform any optional transformations required, and then write to one or more real-time
-sinks.
-
-A pipeline can be thought of as consisting of a series of *stages*. Each stage is a usage
+A pipeline can be viewed as consisting of a series of *stages*. Each stage is a usage
 of a *plugin*, an extension to CDAP that provides a specific functionality.
 
 A stage's configuration properties describes what that plugin is to do (read from a
 stream, write to a table, run a script), and is dependent on the particular plugin used.
 
-All stages are connected together in a directed acyclic graph (or DAG), which is
+All stages are connected together in a directed acyclic graph (or *DAG*), which is
 shown in *Hydrator Studio* and in CDAP as a connected series of icons:
 
 .. image:: /_images/forkInPipeline.png
    :width: 6in
    :align: center
 
-After the pipeline has been run, "post-run" plugins can be called, to perform actions such
-as emailing notifications, moving files, and running database queries, regardless if the
-pipeline run succeeded or failed.
+The general progression in a pipeline is:
+
+1. **Pre-run operations:** any actions required before the pipeline can actually run, such
+   as preparing resources
+#. **Data acquisition:** obtaining data from a source or sources
+#. **Data transformation:** manipulating the data acquired from the sources
+#. **Data publishing:** saving the results of the transformation, either as additional data or a report
+#. **Post-run operations:** any actions required once the pipeline run has completed, such
+   as emailing notifications or cleaning up resources, regardless if the pipeline run
+   succeeded or failed
+
+Data Flow and Control Flow
+--------------------------
+Processing in the pipeline is governed by two aspects:
+
+- Data flow
+- Control flow
+
+**Data flow** is the movement of data, in the form of records, from one step of a pipeline
+to another. When data arrives at a stage, it triggers that stage's processing of the data
+and then the transference of results (if any) to the next stage.
+
+**Control flow** is a parallel process that triggers a stage based on the result from
+another process, independent of the pipeline. Currently, control flow can be applied to
+the initial and final stages of a pipeline, with a post-run stage available after each
+pipeline run, successful or otherwise.
+
+Types of Pipelines
+------------------
+The data flows of a pipeline can be either **batch** or **real-time,** and a variety of
+processing paradigms (MapReduce or Spark) can be used.
+
+**Batch applications** can be scheduled to run periodically using a cron expression and can
+read data from batch sources using a MapReduce job. The batch application then performs
+any of a number of optional transformations before writing to one or more batch sinks.
+
+**Real-time applications** are designed to poll sources periodically to fetch the data,
+perform any optional transformations required, and then write to one or more real-time
+sinks.
+
+
+Pipeline Lifecycle
+------------------
+Similar to other CDAP applications, pipelines have a lifecycle, and can be managed and controlled
+using the tools supplied by CDAP.
+
+
+Logical versus Physical Pipelines
+---------------------------------
+
 
 .. rubric:: **Sidebar:** *Logical versus Physical Pipelines*
 
@@ -111,26 +142,6 @@ Pipeline Lifecycle
 Similar to other CDAP applications, pipelines have a lifecycle, and can be managed and controlled
 using the tools supplied by CDAP.
 
-
-.. rubric:: **Sidebar:** *What is ETL?*
-
-.. container:: inline-sidebar
-
-  Most data infrastructures are front-ended with an ETL system (Extract-Transform-Load). The
-  purpose of the system is to:
-
-  - Extract data from one or more sources;
-  - Transform the data to fit the operational needs; and
-  - Load the data into a desired destination.
-
-  ETL usually comprises a source, zero or more transformations, and one or more sinks, in
-  what is called an ETL pipeline:
-
-  .. image:: _images/etl-pipeline.png
-     :width: 6in
-     :align: center
-
-  Any of the pipelines created with Hydrator can be used for ETL.
 
 .. _cask-hydrator-introduction-what-is-a-plugin:
 
