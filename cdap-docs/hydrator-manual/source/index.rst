@@ -7,9 +7,9 @@
 .. _cask-hydrator:
 .. _hydrator:
 
-======================
-Cask Hydrator Overview
-======================
+=============
+Cask Hydrator
+=============
 
 ..  youtube::  JeqJrBW1UCU
    :align: center

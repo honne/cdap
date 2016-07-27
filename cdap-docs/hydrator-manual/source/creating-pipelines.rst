@@ -295,20 +295,19 @@ To handle the problem of configuring a pipeline, but not knowing at the time of
 configuration the value of a parameter until the actual runtime, you can use macros.
 
 Macros are set using a syntax of ``${macro-name}``, where ``macro-name`` is a key in the
-preferences (or in the runtime arguments) for the physical pipeline.
+preferences (or in the runtime arguments or the workflow token) for the physical pipeline.
 
 For instance, you might not know the name of a source stream until runtime. You could use,
 in the source stream's *Stream Name* configuration::
 
   ${source-stream-name}
   
-and in the preferences (or the runtime arguments) set a key-value pair such as::
+and in the runtime arguments set a key-value pair such as::
 
   source-stream-name: myDemoStream
   
-Macros can be referential, up to ten levels deep. 
-
-You might have an server that refers to a hostname and port, and supply these runtime
+Macros can be referential (refer to other macros), up to ten levels deep. For instance,
+you might have an server that refers to a hostname and port, and supply these runtime
 arguments, one of which is a definition of a macro that uses other macros::
  
   hostname: my-demo-host.example.com
@@ -333,6 +332,72 @@ Information on setting preferences and runtime arguments is in the :ref:`CDAP
 Administration Manual, Preferences <preferences>`. These can be set with the HTTP
 :ref:`Lifecycle <http-restful-api-lifecycle-start>` and :ref:`Preferences
 <http-restful-api-preferences>` RESTful APIs.
+
+
+Macro Functions
+---------------
+In addition to macro substitution, you can use pre-defined macro functions. Currently, two functions
+are predefined and available:
+
+- ``logicalStartTime``
+- ``secure``
+
+
+.. |SimpleDateFormat| replace:: Java ``SimpleDateFormat``
+.. _SimpleDateFormat: http://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html
+
+
+Logical Start Time function
+...........................
+The logicalStartTime macro function returns the logical start time of a run of the pipeline.
+
+If no parameters are supplied, it returns the start time in milliseconds.
+All parameters are optional. The function takes a time format, an offset, and a timezone as
+arguments and uses the logical start time of a pipeline to perform the substitution::
+
+  ${logicalStartTime([timeFormat[,offset [,timezone])}
+  
+where
+
+.. list-table::
+   :widths: 20 80
+   :header-rows: 1
+
+   * - Parameter
+     - Description
+   * - ``timeFormat`` *(Optional)*
+     - Time format string, in the format of a |SimpleDateFormat|
+   * - ``offset`` *(Optional)*
+     - Offset Name of  application
+   * - ``timezone`` *(Optional)*
+     - Offset Name of  application
+
+
+For
+example, suppose the logical start time of a pipeline run is 2016-01-01T00:00:00 and the
+following macro is provided:
+
+${logicalStartTime(yyyy-MM-dd'T'HH-mm-ss,1d-4h+30m)}
+
+The format is yyyy-MM-dd'T'HH-mm-ss and the offset is 1d-4h+30m before the logical start
+time. This means the macro will be replaced with 2015-12-31T03:30:00, since the offset
+translates to 20.5 hours. Therefore, the entire macro evaluates to 20.5 hours before
+midnight of new years 2016.
+
+
+
+Secure Function
+...............
+
+
+The secure macro function takes in a single key as an argument and looks up the key's associated string value from the Secure Store. In order to perform the substitution, the key provided as an argument must already exist in the secure store. This is useful for performing a substitution with sensitive data.
+
+For example, for a plugin that connects to a MySQL database, you can configure the "password" property field with:
+secure function
+
+${secure(mysql-password)}
+
+which will pull "mysql-password" from the secure store at runtime.
 
 
 Validation

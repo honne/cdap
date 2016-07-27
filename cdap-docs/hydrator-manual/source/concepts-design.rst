@@ -8,7 +8,7 @@
 Introduction to Hydrator
 ========================
 
-Cask Hydrator (or simply *Hydrator*) is a self-service, reconfigurable, extendable framework to
+Cask Hydrator (or simply, *Hydrator*) is a self-service, reconfigurable, extendable framework to
 develop, run, automate, and operate **data pipelines** on Hadoop. Completely open source, it
 is licensed under the Apache 2.0 license.
 
