@@ -82,11 +82,23 @@ A sample JDBC Driver Plugin configuration:
 
 
 Managing Multiple Versions
---------------------------
+==========================
 To Be Completed
 
 
 Deleting Plugins
-----------------
-To Be Completed
+================
+Plugins can be deleted using either the :ref:`Artifact HTTP RESTful API <http-restful-api>` or
+the :ref:`CDAP CLI <cdap-cli>`.
+
+In the case of the CDAP CLI, only plugins that have been deployed in the ``user`` scope
+can be deleted by the CDAP CLI. Both ``system`` and ``user`` scope plugins can be deleted
+using the HTTP RESTful API by using the appropriate calls.
+
+Note that in all cases, the actual files (JARs and JSON files) associated with the plugins
+are not deleted. Instead, the references to them are deleted in the CDAP system. If the
+files are not removed after these references are deleted, then |---| in the case of the
+``system`` scope plugins |---|, the artifacts will be reloaded the next time CDAP is
+restarted, as they are automatically loaded at startup from the `appropriate directory
+<plugin-management#deploying-as-a-system-artifact>`_.
 

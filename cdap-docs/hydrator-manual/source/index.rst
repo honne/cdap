@@ -32,16 +32,28 @@ to enable the building, deploying, and managing of data pipelines.
 - |getting-started|_ A tutorial demonstrating the basics of building and running pipelines
 
 
+.. |studio| replace:: **Hydrator Studio:**
+.. _studio: studio.html
+
+- |studio|_ The **UI of Hydrator** for creating pipelines
+
+
 .. |creating-pipelines| replace:: **Creating Pipelines:**
 .. _creating-pipelines: creating-pipelines.html
 
-- |creating-pipelines|_ Including **configuring plugins, publishing** and **running** pipelines
+- |creating-pipelines|_ Including **configuring, cloning,** and **publishing** pipelines
 
 
 .. |running-pipelines| replace:: **Running Pipelines:**
 .. _running-pipelines: running-pipelines.html
 
-- |running-pipelines|_ Including **configuring plugins, publishing** and **running** pipelines
+- |running-pipelines|_ Including **running** and **upgrading existing** pipelines
+
+
+.. |developing-pipelines| replace:: **Developing Pipelines:**
+.. _developing-pipelines: developing-pipelines.html
+
+- |developing-pipelines|_ Using tools outside of Hydrator Studio to create pipelines
 
 
 .. |plugin-management| replace:: **Plugin Management:**
@@ -50,7 +62,7 @@ to enable the building, deploying, and managing of data pipelines.
 - |plugin-management|_ Deploying plugins and **third-party JARs**, updating, deleting and **managing versions**
 
 
-.. |plugins| replace:: **Plugins Reference:**
+.. |plugins| replace:: **Plugin Reference:**
 .. _plugins: plugins/index.html
 
 - |plugins|_ Reference to using the **plugins included in CDAP**, and creating and
@@ -61,12 +73,6 @@ to enable the building, deploying, and managing of data pipelines.
 .. _developing-plugins: developing-plugins.html
 
 - |developing-plugins|_ Developing custom plugins and using the **test framework** for plugins
-
-
-.. |developing-pipelines| replace:: **Developing Pipelines:**
-.. _developing-pipelines: developing-pipelines.html
-
-- |developing-pipelines|_ Creating pipelines using tools outside of Hydrator Studio
 
 
 .. |administration-operation| replace:: **Administration and Operation:**

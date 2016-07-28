@@ -8,12 +8,45 @@
 Creating Pipelines
 ==================
 
-There are two different ways of creating pipelines:
+Pipelines are created from artifacts. A number of artifacts are supplied with CDAP, and
+custom artifacts can be created by developers. An artifact is a blueprint or template that
+|---| with the addition of a configuration file |---| is used to create an application.
+|
+A pipeline application is created by preparing a configuration that specifies the artifact
+and which source, transformations (also known as transforms), and sinks are to be used to
+create the application.
+
+The sources, transformations, and sinks are packaged as extensions to CDAP known as
+**plugins**, and can include actions to be taken at the start of pipeline run, at the end,
+and after the run has been completed. The plugins can be either those that are packaged as
+part of CDAP or ones that have been installed separately.
+
+The configuration can either be written as a JSON file or, in the case of the Hydrator
+Studio, specified in-memory.
+
+CDAP currently provides two artifacts |---| ``cdap-data-pipeline`` and
+``cdap-etl-realtime``, referred to as system artifacts |---| which can be used to create
+different kinds of applications that work in either batch (``cdap-data-pipeline``) or
+real-time (``cdap-etl-realtime``). (A third system artifact, ``cdap-etl-batch`` has been
+deprecated and replaced by the ``cdap-data-pipeline`` artifact, as of CDAP 3.5.0.)
+
+An additional system artifact (``cdap-etl-lib``) provides common resources for the other
+system artifacts, and can be used by developers of custom plugins.
+
+Pipelines can be created using Cask Hydrator's included visual editor (*Cask Hydrator
+Studio*), using command-line tools such the CDAP CLI and ``curl``, or programmatically
+with scripts or Java programs.
+
+
+Methods
+=======
+
+There are two different methods for creating pipelines:
 
 - Using Hydrator Studio
 - Using command line tools (such as the CDAP CLI or ``curl``)
 
-Using **Hydrator Studio,** the basic set of operations is:
+Using **Hydrator Studio,** the basic operations are:
 
 - **Create** a new pipeline, either by starting from a blank canvas, starting from a
   template, or cloning an already published pipeline.
@@ -31,7 +64,7 @@ Using **Hydrator Studio,** the basic set of operations is:
   
 At this point, the pipeline can be run, either from within Hydrator or CDAP.
 
-Using **command line tools,** the basic set of operations is:
+Using **command line tools,** the basic operations are:
 
 - **Create** a new pipeline by writing a configuration file, in JSON format following the
   Hydrator configuration specification, either from an empty configuration, starting with an
@@ -342,10 +375,8 @@ are predefined and available:
 - ``logicalStartTime``
 - ``secure``
 
-
 .. |SimpleDateFormat| replace:: Java ``SimpleDateFormat``
 .. _SimpleDateFormat: http://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html
-
 
 Logical Start Time function
 ...........................
@@ -368,36 +399,35 @@ where
    * - ``timeFormat`` *(Optional)*
      - Time format string, in the format of a |SimpleDateFormat|
    * - ``offset`` *(Optional)*
-     - Offset Name of  application
+     - Offset from the before the logical start time
    * - ``timezone`` *(Optional)*
-     - Offset Name of  application
+     - Timezone to be used for the logical start time
 
+For example, suppose the logical start time of a pipeline run is ``2016-01-01T00:00:00`` and
+this macro is provided::
 
-For
-example, suppose the logical start time of a pipeline run is 2016-01-01T00:00:00 and the
-following macro is provided:
+  ${logicalStartTime(yyyy-MM-dd'T'HH-mm-ss,1d-4h+30m)}
 
-${logicalStartTime(yyyy-MM-dd'T'HH-mm-ss,1d-4h+30m)}
-
-The format is yyyy-MM-dd'T'HH-mm-ss and the offset is 1d-4h+30m before the logical start
-time. This means the macro will be replaced with 2015-12-31T03:30:00, since the offset
-translates to 20.5 hours. Therefore, the entire macro evaluates to 20.5 hours before
-midnight of new years 2016.
+The format is ``yyyy-MM-dd'T'HH-mm-ss`` and the offset is ``1d-4h+30m`` before the logical
+start time. This means the macro will be replaced with ``2015-12-31T03:30:00``, since the
+offset translates to 20.5 hours. The entire macro evaluates to 20.5 hours before midnight
+of January 1 2016.
 
 
 
 Secure Function
 ...............
+The secure macro function takes in a single key as an argument and looks up the key's
+associated string value from the Secure Store. In order to perform the substitution, the
+key provided as an argument must already exist in the secure store. This is useful for
+performing a substitution with sensitive data.
 
+For example, for a plugin that connects to a MySQL database, you could configure the
+*password* property field with:
 
-The secure macro function takes in a single key as an argument and looks up the key's associated string value from the Secure Store. In order to perform the substitution, the key provided as an argument must already exist in the secure store. This is useful for performing a substitution with sensitive data.
+  ${secure(mysql-password)}
 
-For example, for a plugin that connects to a MySQL database, you can configure the "password" property field with:
-secure function
-
-${secure(mysql-password)}
-
-which will pull "mysql-password" from the secure store at runtime.
+which will pull the *mysql-password* from the :ref:`secure store <>` at runtime.
 
 
 Validation

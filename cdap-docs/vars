@@ -9,6 +9,7 @@ HTACCESS="htaccess"
 
 ALL="all"
 DOCS="docs"
+DOCS_LOCAL="docs-local"
 DOCS_OUTER="docs-outer"
 GITHUB="github"
 GITHUB_ONLY="Github-only"

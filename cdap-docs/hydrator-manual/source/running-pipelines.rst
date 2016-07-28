@@ -34,17 +34,47 @@ You can view details of a pipeline, such as its configuration, settings, stages,
 
 Runtime Arguments
 =================
-*[To Be Completed]*
+You may want to create a pipeline that has several configuration settings that are not
+known at pipeline creation time, but that are set at the start of the each pipeline run.
+
+For instance, you might want a pipeline that reads from a database (a source) and writes
+to a table (a sink). The name of the database source and name of the table sink might
+change from run to run and you need to specify those values as input before starting a
+run.
+
+You might want to create a pipeline with a particular action at the start of the run.
+The action could, based on some logic, provide the name of the database to use as a source
+and the name of the table to write as a sink. The next stage in the pipeline might use
+this information to read and write from appropriate sources and sinks.
+
+To do this, Hydrator supports the use of macros that will, at runtime, will be evaluated
+and substituted for. The macros support recursive (nested) expansion and use a simple
+syntax. These macros are defined in the pipeline configuration and in the runtime arguments.
+
+Runtime arguments are resolved by sourcing them from the application preferences, the
+runtime arguments, and the workflow token. Precedence is with the workflow token having
+the highest precedence.
+
+These arguments and preferences can be set with the CDAP UI, the CDAP CLI or the 
+:ref:`Program Lifecycle <http-restful-api-program-lifecycle>` and :ref:`Preferences
+<http-restful-api-preferences>` HTTP RESTful APIs.
+
+Details of usage and examples are explained in the section on :ref:`runtime arguments and
+macros <cask-hydrator-runtime-arguments-macros>`.
 
 
 Re-running a Pipeline
 =====================
-*[To Be Completed]*
+
 
 
 Notifications
 =============
-*[To Be Completed]*
+When a pipeline is completed, notifications can be sent by using one or more *post-run
+actions*.
+
+The :ref:`post-run plugins <cask-hydrator-plugins-post-run-plugins>` allow for emails,
+database queries, and a general HTTP callback action.
 
 
 Logs

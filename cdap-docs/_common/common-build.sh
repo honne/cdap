@@ -152,7 +152,9 @@ function build_docs() {
 }
 
 function build_docs_local() {
-  LOCAL_INCLUDES="${TRUE}"
+  if [ "x${DOCS_LOCAL}" == "x${TRUE}" ]; then
+    LOCAL_INCLUDES="${TRUE}"
+  fi
   build_docs
 }
 
