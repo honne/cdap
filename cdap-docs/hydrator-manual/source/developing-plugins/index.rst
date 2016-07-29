@@ -18,6 +18,21 @@ Developing Plugins
     Testing Plugins <testing-plugins>
     Packaging Plugins <packaging-plugins>
 
+This section is intended for developers writing custom plugins. Users of plugins and
+pipelines should refer to the documentation on :ref:`using plugins
+<cask-hydrator-introduction-what-is-a-plugin>`.
+
+CDAP provides for the creation of custom plugins to extend the existing
+``cdap-data-pipeline`` and ``cdap-etl-realtime`` system artifacts.
+
+**Note:** The ``cdap-etl-batch`` artifact has been deprecated and replaced with the
+``cdap-data-pipeline``, as of CDAP 3.5.0.
+
+Deploying plugins is covered under :ref:`Plugin Deployment:
+<cask-hydrator-plugin-management-deployment>`, for deploying as either a system or user
+artifact.
+
+
 .. |plugin-basics| replace:: **Plugin Basics:**
 .. _plugin-basics: plugin-basics.html
 
@@ -42,16 +57,3 @@ Developing Plugins
 - |packaging-plugins|_ :ref:`Packaging a plugin in a JAR <cask-hydrator-packaging-plugins>`, and
   :ref:`controlling how your plugin appears in the Hydrator Studio <cask-hydrator-packaging-plugins-presentation>`.
   
-This section is intended for developers writing custom plugins. Users of these should
-refer to the documentation on :ref:`using plugins <cask-hydrator-introduction-what-is-a-plugin>`.
-
-Deploying plugins is covered under :ref:`Plugin Deployment:
-<cask-hydrator-plugin-management-deployment>`, for deploying as either a system or user
-artifact.
-
-CDAP provides for the creation of custom plugins to extend the existing
-``cdap-data-pipeline`` and ``cdap-etl-realtime`` system artifacts.
-
-*Note:* The ``cdap-etl-batch`` artifact has been deprecated and replaced with the
-``cdap-data-pipeline`` effective with CDAP 3.5.0.
-

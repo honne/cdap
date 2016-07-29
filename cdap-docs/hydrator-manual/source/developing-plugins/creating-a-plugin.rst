@@ -13,7 +13,7 @@ Creating a Plugin
 
 Action Plugin
 =============
-In order to implement an Action plugin (to be used with the Data Pipeline artifact), you
+In order to implement an Action plugin (to be used with the *Data Pipeline* artifact), you
 extend the ``Action`` class. Only one method is required to be implemented::
 
   run()
@@ -27,7 +27,7 @@ extend the ``Action`` class. Only one method is required to be implemented::
 
 Batch Source Plugin
 ===================
-In order to implement a Batch Source (to be used with either the ETL Batch or Data Pipeline artifacts), you extend the
+In order to implement a Batch Source (to be used with the *Data Pipeline* artifact), you extend the
 ``BatchSource`` class. You need to define the types of the KEY and VALUE that the Batch
 Source will receive and the type of object that the Batch Source will emit to the
 subsequent stage (which could be either a Transformation or a Batch Sink). After defining
@@ -172,7 +172,7 @@ Example::
 
 Batch Sink Plugin
 =================
-In order to implement a Batch Sink (to be used with either the ETL Batch or Data Pipeline artifacts), you extend the
+In order to implement a Batch Sink (to be used with the *Data Pipeline* artifact), you extend the
 ``BatchSink`` class. Similar to a Batch Source, you need to define the types of the KEY and
 VALUE that the Batch Sink will write in the Batch job and the type of object that it will
 accept from the previous stage (which could be either a Transformation or a Batch Source).
@@ -379,19 +379,20 @@ Example::
 
 .. highlight:: java
 
-Source State in a Real-Time Source
-----------------------------------
-Real-time plugins are executed in workers. During failure, there is the possibility that
-the data that is emitted from the Source will not be processed by subsequent stages. In
-order to avoid such data loss, SourceState can be used to persist the information about
-the external source (for example, offset) if supported by the Source.
+Source State
+------------
+**Source State in a Real-Time Source:** Real-time plugins are executed in workers; during
+failure, there is the possibility that the data that is emitted from the Source will not
+be processed by subsequent stages. In order to avoid such data loss, ``SourceState`` can be
+used to persist the information about the external source (for example, an offset) if
+supported by the source.
 
 In case of failure, when the poll method is invoked, the offset last persisted is passed
 to the poll method, which can be used to fetch the data from the last processed point. The
-updated Source State information is returned by the poll method. After the data is
-processed by any Transformations and then finally persisted by the Sink, the new Source
-State information is also persisted. This ensures that there will be no data loss in case
-of failures.
+updated ``SourceState`` information is returned by the poll method. After the data is
+processed by any transformations and then finally persisted by the sink, the new
+``SourceState`` information is also persisted. This ensures that there will be no data loss in
+case of failures.
 
 ::
 

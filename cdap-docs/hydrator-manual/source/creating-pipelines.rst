@@ -46,7 +46,7 @@ Methods for Creating Pipelines
 There are two different methods for creating pipelines:
 
 1. Using Hydrator Studio
-#. Using command line tools (such as the CDAP CLI or ``curl``)
+#. Using command line tools (such as ``curl``, the CDAP CLI, or the CDAP UI)
 
 Using **Hydrator Studio,** the basic operations are:
 
@@ -531,7 +531,7 @@ These are the available templates:
   
   - **Amazon SQS to HBase:** Real-time updates from Amazon Simple Queue Service into an HBase table
   
-- **ETL Batch** (deprecated; use *Data Pipeline* instead)
+- **ETL Batch** (deprecated as of CDAP 3.5.0; use *Data Pipeline* instead)
 
   - **Stream to HBase:** Periodically ingest from a stream into an HBase table
 

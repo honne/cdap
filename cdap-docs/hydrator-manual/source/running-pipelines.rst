@@ -151,6 +151,7 @@ Using the CDAP CLI, you can retrieve the value with:
     | 0         | 170   |
     +===================+
 
+.. _cask-hydrator-running-pipelines-error-record-handling:
 
 Error Record Handling
 =====================

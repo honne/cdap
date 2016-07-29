@@ -10,7 +10,7 @@ Plugin Basics
 
 Types and Maven Archetypes
 ==========================
-In Cask Hydrator, there are |---| at present |---| these plugin types:
+In Cask Hydrator, these plugin types are presently used:
 
 - Action (*action*, restricted to batch pipelines)
 - Batch Source (*batchsource*)
@@ -23,7 +23,7 @@ In Cask Hydrator, there are |---| at present |---| these plugin types:
 - Spark Sink (*sparksink*) 
 - Post-run Action (*postaction*, restricted to batch pipelines)
 
-To get started, you can use one of these Maven archetypes to create your project: 
+To get started on creating a custom plugin, you can use one of these Maven archetypes to create your project: 
 
 - ``cdap-data-pipeline-plugins-archetype`` (contains batch, Spark plugin, and other types)
 - ``cdap-etl-realtime-source-archetype`` (contains a realtime source)
@@ -44,7 +44,7 @@ This command will create a project from an archetype:
           
 where ``<archetype>`` is one of the archetypes listed above.
 
-You can replace the groupId with your own organization, but it must not be ``co.cask.cdap``.
+You can replace the *archetypeGroupId* parameter with your own organization, but it must not be ``co.cask.cdap``.
 
 Class Annotations
 =================

@@ -10,13 +10,25 @@ Developing Pipelines
 
 .. highlight:: console
 
-Pipelines can be created using the :ref:`Lifecycle RESTful API
+This section will be of interest to developers creating pipelines using command line tools.
+
+As mentioned in the page on :ref:`cask-hydrator-creating-pipelines`, there are two
+different methods for creating pipeline applications:
+
+1. Using Hydrator Studio
+#. Using command line tools (such as ``curl``, the CDAP CLI, or the CDAP UI)
+
+Using comamnd line tools, pipelines can be created using the :ref:`Lifecycle RESTful API
 <http-restful-api-lifecycle-create-app>`, the :ref:`CDAP CLI <cli>`, or the :ref:`CDAP UI
-<cdap-ui>`. In order to create a pipeline, a pipeline configuration is required that
-specifies the source, transformations, sinks, and other plugins to be used along with
-their properties.  (In Hydrator Studio, the user interface prompts you for the required
+<cdap-ui>`. 
+
+In order to create a pipeline application, a pipeline configuration (either as a file or
+in-memory) is required that specifies the configuration of plugins to be used along with
+their properties. (In Hydrator Studio, the user interface prompts you for the required
 information.)
 
+This section describes how to create such a configuration, and various aspects to be
+considered in the design of pipelines.
 
 .. _hydrator-developing-pipelines-configuration-file-format:
 
@@ -158,7 +170,9 @@ The format of ``stage`` and ``postaction`` objects:
    * - ``plugin``
      - Plugin object
    * - ``errorDatasetName``
-     - Name of a dataset that any error messages will be written to; used by validating transform stages
+     - Name of a dataset that any error messages will be written to; used by
+       :ref:`validating transform <cask-hydrator-running-pipelines-error-record-handling>`
+       stages
 
 The format of a ``plugin`` object:
 
@@ -182,12 +196,12 @@ The format of a ``plugin`` object:
 
 Creating a Batch Pipeline
 =========================
-With a Hydrator batch pipeline, it requires a ``schedule`` property with a cron entry
-specifying the frequency of the Batch job run, such as every day or every hour.
+With a Hydrator batch pipeline, a ``schedule`` property is required with a ``cron`` entry
+specifying the frequency of the batch job run, such as every day or every hour.
 
 For example, this JSON (when in a file such as ``config.json``) provides a
-configuration for a Batch pipeline that runs every minute, reading data from a stream
-*myStream* and writing to a dataset (Table) called *myTable*, without any transformations;
+configuration for a batch pipeline that runs every minute, reading data from a stream
+*myStream* and writing to a dataset (``Table``) called *myTable*, without any transformations;
 when the run completes, a post-run action send an email indicating that the run has completed:
 
 .. container:: highlight
@@ -273,20 +287,23 @@ when the run completes, a post-run action send an email indicating that the run 
     }
 
 This pipeline launches a MapReduce program that runs every minute, reads data from the
-``Stream`` *myStream* and writes to a ``Table`` *myTable*. A Table Sink needs a row key field to
+``Stream`` *myStream* and writes to a ``Table`` *myTable*. A *Table Sink* needs a row key field to
 be specified and can use the timestamp of a stream event for that.
 
 A pipeline configuration (the ``config`` object) consists of stages, connections and other
 properties. The stages consist of a single source, zero (or more) transforms, and one (or
 more) sink(s). Each of these stages is identified by a unique name and the plugin to be used.
 
-A ``plugin`` object is specified by a plugin-name, type, a properties map and can (optionally) specify the artifact.
-If the artifact is not specified, the pipeline will choose the artifact with the highest version.
+A ``plugin`` object is specified by a plugin-name, type, a properties map and can
+(optionally) specify the artifact. If the artifact is not specified, the pipeline will
+choose the artifact with the highest version.
 
-The connections field in the configuration defines the connections between the stages, using the 
-unique names of the stages. The pipeline defined by these connections must be a directed acyclic graph (or DAG).
+The connections field in the configuration defines the connections between the stages,
+using the unique names of the stages. The pipeline defined by these connections must be a
+directed acyclic graph (or DAG).
 
-To create this pipeline, called *streamETLApp*, you can use either the HTTP RESTful API or the CDAP CLI.
+To create this pipeline, called *streamETLApp*, you can use either an HTTP RESTful API or
+the CDAP CLI.
 
 - Using the :ref:`Lifecycle RESTful API <http-restful-api-lifecycle-create-app>`:
 
@@ -305,7 +322,7 @@ To create this pipeline, called *streamETLApp*, you can use either the HTTP REST
     
     Successfully created application
 
-where ``config.json`` is the file that contains the pipeline configuration shown above.
+where, in both cases, ``config.json`` is the file that contains the pipeline configuration shown above.
 
 .. _hydrator-developing-pipelines-creating-real-time:
 
@@ -404,9 +421,10 @@ stopped, and then the pipeline configuration can be updated to the new number of
 The ``instances`` property value needs to be greater than zero. Note that the ``instance``
 property replaces the ``schedule`` property of a Hydrator batch pipeline.
 
-In the example code above, we will use a *ProjectionTransform* (a type of Transform) to drop and rename selected 
-columns in the incoming data. A *StreamSink* in the final step needs a data field property (``body.field``)
-that it will use as the content for the data to be written.
+In the example code above, we will use a *ProjectionTransform* (a type of transform) to
+drop and rename selected columns in the incoming data. A *StreamSink* in the final step
+needs a data field property (``body.field``) that it will use as the content for the data
+to be written.
 
 
 Non-linear Executions in Pipelines
@@ -416,10 +434,11 @@ execution of pipeline stages.
 
 Fork in Pipeline
 ----------------
-In this example, a pipeline reads from the stream ``purchaseStats``. It writes the stream events
-to the table ``replicaTable``, while at the same time it writes just the ``userIds`` to the ``usersTable``
-when a user's purchase price is greater than 1000. This filtering logic is applied by using an included script
-in the step ``spendingUsersScript``:
+In this example, a pipeline reads from the stream ``purchaseStats``. It writes the stream
+events to the table ``replicaTable``, while at the same time it writes just the
+``userIds`` to the ``usersTable`` when a user's purchase price is greater than 1000. This
+filtering logic is applied by using an included script in the step
+``spendingUsersScript``:
 
 .. image:: /_images/forkInPipeline.png
    :width: 6in
@@ -534,23 +553,26 @@ Merging Stages in Pipeline
 --------------------------
 Forked transform stages can merge together at a transform or a sink stage.
 
-A merge does not join, or modify records in any way. It simply means that multiple stages can write to the same stage.
-The only requirement is that all stages must output records of the same schema to the merging stage. Note that
-the order of records sent from the forked stages to the merging stage will not be defined.
+A merge does not join, or modify records in any way. It simply means that multiple stages
+can write to the same stage. The only requirement is that all stages must output records
+of the same schema to the merging stage. Note that the order of records sent from the
+forked stages to the merging stage will not be defined.
 
-In this next example, ``purchaseStream`` has purchase data with fields ``userid``, ``item``, ``count``, and ``price``.
-The stream events source stage ``purchaseStream`` forks, and records are sent to both of the
-transforms ``userRewards`` and ``itemRewards``.
+In this next example, ``purchaseStream`` has purchase data with fields ``userid``,
+``item``, ``count``, and ``price``. The stream events source stage ``purchaseStream``
+forks, and records are sent to both of the transforms ``userRewards`` and ``itemRewards``.
 
-The ``userRewards`` transform script looks up valued customers in the table ``hvCustomers``,
-to check if ``userid`` is a valued customer and assigns higher rewards if they are.
-After calculating the rewards, this transform sends an output record in the format ``userid(string), rewards(double)``.
+The ``userRewards`` transform script looks up valued customers in the table
+``hvCustomers``, to check if ``userid`` is a valued customer and assigns higher rewards if
+they are. After calculating the rewards, this transform sends an output record in the
+format ``userid(string), rewards(double)``.
 
-The ``itemRewards`` transform script awards higher rewards for bulk purchases and sends output records in the 
-same format, ``userid(string), rewards(double)``.
+The ``itemRewards`` transform script awards higher rewards for bulk purchases and sends
+output records in the same format, ``userid(string), rewards(double)``.
 
-The rewards records are merged at the sink ``rewardsSink``; note that the incoming schema from the transforms
-``userRewards`` and ``itemRewards`` are the same, and that the order of received records will vary.
+The rewards records are merged at the sink ``rewardsSink``; note that the incoming schema
+from the transforms ``userRewards`` and ``itemRewards`` are the same, and that the order
+of received records will vary.
 
 .. image:: /_images/mergeInPipeline.png
    :width: 8in
@@ -693,7 +715,7 @@ Sample Pipeline Configurations
 
 Database Source and Sink
 ------------------------
-Sample configuration for using a Database Source and a Database Sink:
+Sample configuration for using a *Database Source* and a *Database Sink*:
 
 .. container:: highlight
 
@@ -750,9 +772,9 @@ Sample configuration for using a Database Source and a Database Sink:
       }
     }
   
-Kafka
------
-A Kafka cluster needs to be setup, and certain minimum properties specified when
+Kafka Source
+------------
+A Kafka cluster needs to be available, and certain minimum properties specified when
 creating the source:
 
 .. container:: highlight
@@ -803,6 +825,6 @@ creating the source:
 
 Prebuilt JARs
 -------------
-In a case where you'd like to use prebuilt third-party JARs (such as a
-JDBC driver) as a plugin, please refer to the section on :ref:`Deploying Third-Party Jars
+In a case where you'd like to use prebuilt third-party JARs (such as a JDBC driver) as a
+plugin, please refer to the section on :ref:`Deploying Third-Party Jars
 <cask-hydrator-third-party-plugins>`. 
