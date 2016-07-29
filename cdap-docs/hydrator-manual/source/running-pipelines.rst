@@ -8,7 +8,6 @@
 Running Pipelines
 =================
 
-
 Pipeline can be started, stopped, and controlled using:
 
 - :ref:`Cask Hydrator UI <cask-hydrator-running-pipelines-within-hydrator>`
@@ -23,13 +22,15 @@ Running a Pipeline within Hydrator
 ==================================
 From within Hydrator, you can start and stop pipelines. 
 
-For a batch pipeline, you can start or stop ("suspend") its schedule. It will then begin
+For a **batch pipeline,** you can start or stop ("suspend") its schedule. It will then begin
 at the next scheduled time. (To change the schedule requires creating a new pipeline with
 a new schedule.)
 
-For a real-time pipeline, you simply start or stop the pipeline.
+For a **real-time pipeline,** you simply start or stop the pipeline.
 
-You can view details of a pipeline, such as its configuration, settings, stages, schemas, etc.
+You can set the arguments used to start the pipeline (both as preferences and runtime
+arguments) and view details of a pipeline, such as its configuration, settings, stages,
+schemas, and logs.
 
 
 Runtime Arguments
@@ -49,7 +50,8 @@ this information to read and write from appropriate sources and sinks.
 
 To do this, Hydrator supports the use of macros that will, at runtime, will be evaluated
 and substituted for. The macros support recursive (nested) expansion and use a simple
-syntax. These macros are defined in the pipeline configuration and in the runtime arguments.
+syntax. These macros are :ref:`defined in the pipeline configuration  
+<cask-hydrator-runtime-arguments-macros>` and in the runtime arguments.
 
 Runtime arguments are resolved by sourcing them from the application preferences, the
 runtime arguments, and the workflow token. Precedence is with the workflow token having
@@ -65,15 +67,18 @@ macros <cask-hydrator-runtime-arguments-macros>`.
 
 Re-running a Pipeline
 =====================
-
+When a pipeline is re-run, any previously-set runtime arguments will have been discarded
+and will need to be set again, if required. Any previously-set application preferences will
+be retained and re-used.
 
 
 Notifications
 =============
 When a pipeline is completed, notifications can be sent by using one or more *post-run
-actions*.
+actions*. These are :ref:`set in the pipeline configuration 
+<cask-hydrator-creating-pipelines-post-run-actions>`.
 
-The :ref:`post-run plugins <cask-hydrator-plugins-post-run-plugins>` allow for emails,
+These :ref:`post-run plugins <cask-hydrator-plugins-post-run-plugins>` allow for emails,
 database queries, and a general HTTP callback action.
 
 
@@ -149,9 +154,86 @@ Using the CDAP CLI, you can retrieve the value with:
 
 Error Record Handling
 =====================
-To Be Completed
+To handle the problem of validating records and handling any subsequent errors, certain
+transform stages are available that can check that a record matches specified criteria.
+Records that fail the criteria can be discarded, and appropriate messages written to a
+configurable error dataset.
+
+These transform plugins support error record handling:
+
+- JavaScript:       `batch <plugins/batch/transforms/javascript.html>`__      or `real-time <plugins/realtime/transforms/javascript.html>`__
+- Python Evaluator: `batch <plugins/batch/transforms/pythonevaluator.html>`__ or `real-time <plugins/realtime/transforms/pythonevaluator.html>`__
+- Validator:        `batch <plugins/batch/transforms/validator.html>`__       or `real-time <plugins/realtime/transforms/validator.html>`__
+- XML Parser:       `batch <plugins/batch/transforms/xmlparser.html>`__       or `real-time <plugins/realtime/transforms/xmlparser.html>`__
+
+See the :ref:`Core Validator <cask-hydrator-plugins-shared-core-validator>` for examples
+and additional information.
 
 
 Configuring Resources
 =====================
-*To Be Completed*
+Resources for pipelines can be configured as any other CDAP workflow application.
+
+See the Administration Manual sections on :ref:`Scaling Instances <cdapadmin:scaling-instances>` and 
+:ref:`Resource Guarantees for CDAP Programs in YARN <cdapadmin:resource-guarantees>`.
+
+
+.. _cask-hydrator-operating-upgrading-pipeline:
+
+Upgrading a Pipeline
+====================
+If you wish to upgrade pipelines created using the |previous-short-version|\.x versions
+of ``cdap-etl-batch`` or ``cdap-etl-realtime``, you can use the ETL upgrade tool packaged
+with the distributed version of CDAP. You would want to run this tool to upgrade
+applications that were created with earlier versions of the artifacts, that you would
+like to open in the |version| version of Cask Hydrator Studio.
+
+The tool will connect to an instance of CDAP, look for any applications that use |previous-short-version|\.x
+versions of the ``cdap-etl-batch`` or ``cdap-etl-realtime`` artifacts, and then update the
+application to use the |version| version of those artifacts. CDAP must be running when you
+run the command:
+
+.. container:: highlight
+
+  .. parsed-literal::
+  
+    |$| java -cp /opt/cdap/master/libexec/cdap-etl-tools-|version|.jar co.cask.cdap.etl.tool.UpgradeTool -u \http://<host>:<port> -e /tmp/failedUpgrades upgrade
+
+The first argument is the host and port for the :ref:`CDAP router
+<appendix-cdap-default-router>`. The second argument is a directory to write the
+configurations of any pipelines that could not be upgraded. A pipeline may fail to upgrade
+if the new version of a plugin used in the pipeline is not backwards compatible. For
+example, this may happen if the plugin added a new required property.
+
+You can also upgrade just the ETL applications within a specific namespace:
+
+.. container:: highlight
+
+  .. parsed-literal::
+  
+    |$| java -cp /opt/cdap/master/libexec/cdap-etl-tools-|version|.jar co.cask.cdap.etl.tool.UpgradeTool -u \http://<host>:<port> -n <namespace-id> upgrade
+
+You can also upgrade just one ETL application:
+
+.. container:: highlight
+
+  .. parsed-literal::
+  
+    |$| java -cp /opt/cdap/master/libexec/cdap-etl-tools-|version|.jar co.cask.cdap.etl.tool.UpgradeTool -u \http://<host>:<port> -n <namespace-id> -p <app-name> upgrade
+
+If you have authentication turned on, you also need to store an access token in a file and pass the file to the tool:
+
+.. container:: highlight
+
+  .. parsed-literal::
+  
+    |$| java -cp /opt/cdap/master/libexec/cdap-etl-tools-|version|.jar co.cask.cdap.etl.tool.UpgradeTool -u \http://<host>:<port> -a <tokenfile> upgrade
+
+For instance, if you have obtained an access token (as shown in the example in the
+`security documentation <testing-security>`) such as::
+
+    {"access_token":"AghjZGFwAI7e8p65Uo7OpfG5UrD87psGQE0u0sFDoqxtacdRR5GxEb6bkTypP7mXdqvqqnLmfxOS",
+      "token_type":"Bearer","expires_in":86400}
+
+The access token itself (``AghjZGFwAI7e8p65Uo7OpfG5UrD87psGQE0u0sFDoqxtacdRR5GxEb6bkTypP7mXdqvqqnLmfxOS``) 
+would be placed in a file and then the file's path would be used in the above command.

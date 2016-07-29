@@ -139,6 +139,7 @@ intersphinx_mapping_cdap_manuals = {
   'introduction': ('../../introduction/',      os.path.abspath(_intersphinx_mapping % 'introduction')),
   'developers':   ('../../developers-manual/', os.path.abspath(_intersphinx_mapping % 'developers-manual')),
 #   'cdapapps':     ('../../cdap-apps',          os.path.abspath(_intersphinx_mapping % 'cdap-apps')),
+  'cdapadmin':   ('../../admin-manual/',      os.path.abspath(_intersphinx_mapping % 'admin-manual')),
   'admin':        ('../../admin-manual/',      os.path.abspath(_intersphinx_mapping % 'admin-manual')),
   'integrations': ('../../integrations/',      os.path.abspath(_intersphinx_mapping % 'integrations')),
   'examples':     ('../../examples-manual',    os.path.abspath(_intersphinx_mapping % 'examples-manual')),

@@ -152,9 +152,9 @@ function build_docs() {
 }
 
 function build_docs_local() {
-  if [ "x${DOCS_LOCAL}" == "x${TRUE}" ]; then
-    LOCAL_INCLUDES="${TRUE}"
-  fi
+  BELL="${TRUE}"
+  LOCAL_INCLUDES="${TRUE}"
+  export LOCAL_INCLUDES
   build_docs
 }
 
@@ -244,6 +244,9 @@ function check_build_rst() {
 }
 
 function check_includes() {
+  if [ "x${DOCS_LOCAL}" == "x${TRUE}" ]; then
+    LOCAL_INCLUDES="${TRUE}"
+  fi
   if [ "${CHECK_INCLUDES}" == "${TRUE}" ]; then
     echo_red_bold "Downloading and checking files to be included."
     # Build includes

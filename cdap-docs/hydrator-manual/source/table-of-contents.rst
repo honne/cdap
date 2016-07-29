@@ -15,7 +15,6 @@ Cask Hydrator: Table of Contents
     Hydrator Studio <studio>
     Creating Pipelines <creating-pipelines>
     Running Pipelines <running-pipelines>
-    Administration and Operation <administration-operation>
     Plugin Management <plugin-management>
     Plugin Reference <plugins/index>
     Developing Pipelines <developing-pipelines>

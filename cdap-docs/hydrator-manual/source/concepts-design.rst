@@ -8,9 +8,9 @@
 Introduction to Hydrator
 ========================
 
-Cask Hydrator (or simply, *Hydrator*) is a self-service, reconfigurable, extendable framework to
-develop, run, automate, and operate **data pipelines** on Hadoop. Completely open source, it
-is licensed under the Apache 2.0 license.
+Cask Hydrator (called *Hydrator* for short) is a self-service, reconfigurable, extendable
+framework to develop, run, automate, and operate **data pipelines** on Hadoop. Completely
+open source, it is licensed under the Apache 2.0 license.
 
 Hydrator is an extension to CDAP and includes the *Cask Hydrator Studio*, a visual
 drag-and-drop interface for building data pipelines from an included library of pre-built
@@ -62,7 +62,7 @@ Different plugins are available to provide functionality for each stage.
 
 Data and Control Flow
 ---------------------
-Processing in the pipeline is governed by two aspects: **data** and **control** flow.
+Processing in the pipeline is governed by two aspects: *data* and *control* flow.
 
 **Data flow** is the movement of data, in the form of records, from one step of a pipeline
 to another. When data arrives at a stage, it triggers that stage's processing of the data
@@ -73,12 +73,19 @@ another process, independent of the pipeline. Currently, control flow can be app
 the initial and final stages of a pipeline, with a post-run stage available after each
 pipeline run, successful or otherwise.
 
-Logical versus Physical Pipelines
----------------------------------
+Logical and Physical Pipelines
+------------------------------
+Within CDAP, there is the concept of *logical* and *physical* pipelines.
 
-  .. include:: /how-hydrator-works.rst
-     :start-after: .. _cask-hydrator-how-hydrator-works-logical-start:
-     :end-before:  .. _cask-hydrator-how-hydrator-works-logical-end:
+A **logical pipeline** is the view as seen in Hydrator Studio and the Cask Hydrator UI.
+It shows the stages, but not the underlying technology used to actually manifest and run the pipeline.
+
+A **physical pipeline** is the manifestation of a logical pipeline as a CDAP application,
+which is a collection of programs and services that read and write through the data
+abstraction layer in CDAP. 
+
+A *planner* is responsible for converting the logical pipeline to the physical pipeline. The
+planner analyzes the logical view of the pipeline and converts it to the CDAP application.
 
 Types of Pipelines
 ------------------
@@ -111,7 +118,7 @@ of existing artifacts. An application can be created with the existing plugins i
 with CDAP or, if a user wishes, they can write a plugin to add their own capability.
 
 Properties
-----------
+==========
 Each stage in a pipeline represents the configuration of a specific plugin, and that
 configuration usually requires that certain properties be specified. At a minimum, a
 unique name for the stage and the plugin being used is required, with any additional
@@ -122,12 +129,11 @@ required and supported for each plugin.
 
 Schema
 ======
-Each stage of a pipeline that emits data (basically, all stages except for *actions* and
-*sinks*) emits data with a schema that is set for that stage. Schemas need to match
-appropriately from stage to stage, and controls within *Hydrator Studio* allow the
-propagation of a schema to subsequent stages.
+Each stage of a pipeline that emits data (basically, all stages except for *pre-run
+operations* and *data publishing*) emits data with a schema that is set for that stage.
+Schemas need to match appropriately from stage to stage, and controls within *Hydrator
+Studio* allow the propagation of a schema to subsequent stages.
 
 The schema allows you to control which fields and their types are used in all stages of
 pipeline. Certain plugins require specific schemas, and transform plugins are available to
 convert data to required formats and schemas.
-

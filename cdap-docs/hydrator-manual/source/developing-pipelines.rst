@@ -157,6 +157,8 @@ The format of ``stage`` and ``postaction`` objects:
        post-actions in the ``postActions`` list
    * - ``plugin``
      - Plugin object
+   * - ``errorDatasetName``
+     - Name of a dataset that any error messages will be written to; used by validating transform stages
 
 The format of a ``plugin`` object:
 

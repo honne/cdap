@@ -75,12 +75,6 @@ to enable the building, deploying, and managing of data pipelines.
 - |developing-plugins|_ Developing custom plugins and using the **test framework** for plugins
 
 
-.. |administration-operation| replace:: **Administration and Operation:**
-.. _administration-operation: administration-operation.html
-
-- |administration-operation|_ *[TBD]*
-
-
 .. |how-hydrator-works| replace:: **How Hydrator Works:**
 .. _how-hydrator-works: how-hydrator-works.html
 

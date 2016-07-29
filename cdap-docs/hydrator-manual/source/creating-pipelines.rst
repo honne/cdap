@@ -8,7 +8,7 @@
 Creating Pipelines
 ==================
 
-Pipelines are created from artifacts. A number of artifacts are supplied with CDAP, and
+Pipelines are created from *artifacts*. A number of artifacts are supplied with CDAP, and
 custom artifacts can be created by developers. An artifact is a blueprint or template that
 |---| with the addition of a configuration file |---| is used to create an application.
 |
@@ -17,18 +17,21 @@ and which source, transformations (also known as transforms), and sinks are to b
 create the application.
 
 The sources, transformations, and sinks are packaged as extensions to CDAP known as
-**plugins**, and can include actions to be taken at the start of pipeline run, at the end,
-and after the run has been completed. The plugins can be either those that are packaged as
-part of CDAP or ones that have been installed separately.
+**plugins**, and can include actions to be taken at the start of pipeline run, at the end
+of the run, and after the run has been completed. The plugins can be either those that are
+packaged as part of CDAP or ones that have been installed separately.
 
 The configuration can either be written as a JSON file or, in the case of the Hydrator
 Studio, specified in-memory.
 
-CDAP currently provides two artifacts |---| ``cdap-data-pipeline`` and
-``cdap-etl-realtime``, referred to as system artifacts |---| which can be used to create
-different kinds of applications that work in either batch (``cdap-data-pipeline``) or
-real-time (``cdap-etl-realtime``). (A third system artifact, ``cdap-etl-batch`` has been
-deprecated and replaced by the ``cdap-data-pipeline`` artifact, as of CDAP 3.5.0.)
+CDAP currently provides two artifacts (referred to as *system artifacts*):
+
+- ``cdap-data-pipeline`` (for batch pipelines)
+- ``cdap-etl-realtime`` (for realtime pipelines)
+
+which are used to create the different kinds of data pipeline applications. (A third
+system artifact, ``cdap-etl-batch`` has been deprecated and replaced by the
+``cdap-data-pipeline`` artifact, as of CDAP 3.5.0.)
 
 An additional system artifact (``cdap-etl-lib``) provides common resources for the other
 system artifacts, and can be used by developers of custom plugins.
@@ -38,51 +41,52 @@ Studio*), using command-line tools such the CDAP CLI and ``curl``, or programmat
 with scripts or Java programs.
 
 
-Methods
-=======
-
+Methods for Creating Pipelines
+==============================
 There are two different methods for creating pipelines:
 
-- Using Hydrator Studio
-- Using command line tools (such as the CDAP CLI or ``curl``)
+1. Using Hydrator Studio
+#. Using command line tools (such as the CDAP CLI or ``curl``)
 
 Using **Hydrator Studio,** the basic operations are:
 
-- **Create** a new pipeline, either by starting from a blank canvas, starting from a
-  template, or cloning an already published pipeline.
+  1. **Create** a new pipeline, either by starting from a :ref:`blank canvas <cask-hydrator-getting-started-hydrator-studio>`, 
+     starting from a `template <Pipeline Templates>`_, or by `cloning <Cloning>`_ an already-published pipeline.
 
-- **Edit** the pipeline in Hydrator Studio, setting appropriate configurations and
-  settings.
+  #. **Edit** the pipeline in Hydrator Studio, setting appropriate configurations and
+     settings.
 
-- **Save** the pipeline as you are working in it, as a draft pipeline, using a unique name.
+  #. **Save** the pipeline as you are working on it, as a draft pipeline, using a unique name.
 
-- **Validate** the pipeline from within Hydrator Studio, to check that basic settings and
-  naming are correct.
+  #. **Validate** the pipeline from within Hydrator Studio, to check that basic settings and
+     naming are correct.
 
-- **Publish** the pipeline from within Hydrator Studio, which will translate the virtual
-  pipeline of the configuration into a physical pipeline with the specified name.
+  #. **Publish** the pipeline from within Hydrator Studio, which will translate the virtual
+     pipeline of the configuration into a physical pipeline with the specified name.
   
-At this point, the pipeline can be run, either from within Hydrator or CDAP.
+  At this point, the pipeline can be run, either from within Hydrator or CDAP.
+
+  **Note:** Unlike many editors, Hydrator Studio does not allow draft pipelines to be
+  published "on top of" existing, published pipelines, as this would invalidate existing
+  logs, metrics, and datasets. Instead, it requires you to create a new name for any
+  newly-published pipelines.
 
 Using **command line tools,** the basic operations are:
 
-- **Create** a new pipeline by writing a configuration file, in JSON format following the
-  Hydrator configuration specification, either from an empty configuration, starting with an
-  example or template, or re-using an existing configuration file.
+  1. **Create** a new pipeline by writing a configuration file, in JSON format following the
+     :ref:`Hydrator configuration specification <hydrator-developing-pipelines-configuration-file-format>`, 
+     either from an empty configuration, starting with an example or template, or re-using an
+     existing configuration file.
 
-- **Edit** the JSON configuration file in an editor, setting appropriate configurations and
-  settings.
+  #. **Edit** the JSON configuration file in an editor, setting appropriate configurations and
+     settings.
 
-- **Publish** the pipeline either by using the Lifecycle RESTful API or CDAP CLI, which
-  will translate the virtual pipeline of the configuration file into a physical pipeline
-  with the specified name.
-  
-Pipelines published using command line tools are visible within both CDAP and Hydrator, and
-can be cloned and edited using Hydrator Studio.
-
-**Note:** Unlike many editors, Hydrator Studio does not allow draft pipelines to be published
-"on top of" existing, published pipelines, as this would invalidate existing logs, metrics,
-and datasets. Instead, it requires you to create a new name for any newly-published pipelines.
+  #. **Publish** the pipeline either by using the Lifecycle RESTful API or CDAP CLI, which
+     will translate the virtual pipeline of the configuration file into a physical pipeline
+     with the specified name.
+   
+  Pipelines published using command line tools are visible within both CDAP and Hydrator, and
+  can be cloned and edited using Hydrator Studio.
 
 
 Batch Pipelines
@@ -224,6 +228,8 @@ or by setting the engine property in the configuration file for the pipeline::
 This determines the particular engine that will be used when the physical pipeline is
 created.
 
+.. _cask-hydrator-creating-pipelines-post-run-actions:
+
 Post-run Actions
 ----------------
 Post-run actions can be configured for a batch pipeline, either by using the Hydrator Studio or
@@ -231,19 +237,30 @@ by setting the "postRunActions" property of the configuration JSON file. The ava
 actions are determined by the post-run plugins that are available to the application
 template being used to create the pipeline.
 
-Currently, post-run plugins are only available when using the ``cdap-data-pipeline``
-application template.
+If configured, the actions take place after the completion of a pipeline run,
+and can happen depending of the status of the run. One of three conditions must be specified:
 
-Available post-run plugins are documented in the :ref:`Plugin Reference
-<cask-hydrator-plugins-post-run-plugins>`.
+- completion (action takes place regardless of the status)
+- success (action takes place only upon success)
+- failure (action takes place only upon failure)
+
+Currently, post-run plugins are only available when using the ``cdap-data-pipeline``
+application template. Available post-run plugins are documented in the :ref:`Plugin Reference
+<cask-hydrator-plugins-post-run-plugins>`, with these actions currently available:
+
+- sending an email
+- running a database query
+- making an HTTP request
+
 
 Real-time Pipelines
 ===================
 
 Introduction
 ------------
-Real-time pipelines are designed to poll sources periodically to fetch data,
-perform any (optional) transformations, and then write to one or more real-time sinks.
+Real-time pipelines are designed to poll sources periodically to fetch data, perform any
+(optional) transformations, and then write to one or more real-time sinks. As they are
+intended to be run continuously, post-run actions are not applicable or available.
 
 Types of Plugins
 ----------------
@@ -312,13 +329,19 @@ section on :ref:`developing pipelines: creating a real-time pipeline
 <hydrator-developing-pipelines-creating-real-time>`.
 
 
-Common Settings
-===============
+Common Configuration Settings
+=============================
 These settings can be used in both batch and real-time pipelines.
 
-Configuring Resources
----------------------
-*[New in 3.5: To Be Completed]*
+Required Fields
+---------------
+Certain fields are required to be configured in order for the plugin to work. These are
+identified in the Hydrator Studio configuration panel by a red dot, and are
+described in the :ref:`Hydrator Plugin Reference <cask-hydrator-plugins>`
+documentation as *required*.
+
+.. Configuring Resources
+.. ---------------------
 
 .. _cask-hydrator-runtime-arguments-macros:
 
@@ -355,9 +378,9 @@ expecting that it would be replaced with::
 
   my-demo-host.example.com:9991
 
-The order of precedence (from highest to lowest) for resolving macros is::
+The order of precedence (from lowest to highest) for resolving macros is::
 
-  <workflow-token> | <runtime-arguments> | <preferences>
+  Preferences < Runtime Arguments < Workflow Token
   
 This order is used so that the most volatile source (the workflow token) takes precedence.
 
@@ -366,11 +389,14 @@ Administration Manual, Preferences <preferences>`. These can be set with the HTT
 :ref:`Lifecycle <http-restful-api-lifecycle-start>` and :ref:`Preferences
 <http-restful-api-preferences>` RESTful APIs.
 
+Fields that are macro-enabled are identified in the Hydrator Studio UI and documented in
+the :ref:`Hydrator Plugin Reference <cask-hydrator-plugins>`.
+
 
 Macro Functions
 ---------------
-In addition to macro substitution, you can use pre-defined macro functions. Currently, two functions
-are predefined and available:
+In addition to macro substitution, you can use pre-defined macro functions. Currently,
+these functions are predefined and available:
 
 - ``logicalStartTime``
 - ``secure``
@@ -413,8 +439,6 @@ start time. This means the macro will be replaced with ``2015-12-31T03:30:00``, 
 offset translates to 20.5 hours. The entire macro evaluates to 20.5 hours before midnight
 of January 1 2016.
 
-
-
 Secure Function
 ...............
 The secure macro function takes in a single key as an argument and looks up the key's
@@ -427,7 +451,7 @@ For example, for a plugin that connects to a MySQL database, you could configure
 
   ${secure(mysql-password)}
 
-which will pull the *mysql-password* from the :ref:`secure store <>` at runtime.
+which will pull the *mysql-password* from the Secure Store at runtime.
 
 
 Validation
@@ -452,83 +476,16 @@ Using either method, published pipelines are visible within both CDAP and Hydrat
 can be cloned and edited using Hydrator Studio.
 
 
-Re-using Existing Pipelines
-===========================
+Templates and Re-using Pipelines
+================================
 Existing pipelines can be used to create new pipelines by:
 
-- cloning an already-published pipeline and saving the resulting draft with a new name; or
-- exporting a configuration file, editing it, and then importing the revised file.
+- Using a **pipeline template**
+- **Cloning** an already-published pipeline and saving the resulting draft with a new name
+- **Exporting** a configuration file, editing it, and then **importing** the revised file
 
-
-Cloning
--------
-Any existing pipeline that has been published, can be *cloned.* This creates an in-memory
-copy of the pipeline with the same name and opens it within Hydrator Studio.
-
-At this point, you can rename the pipeline to a unique name and then save it as draft or
-publish it as a new pipeline. As you cannot save over an existing pipeline, all new
-pipelines need a unique name; a common practice is to increment the names, from *Demo-1*
-to *Demo-2* with each new clone. 
-
-
-Pipeline Drafts
----------------
-From within *Hydrator Studio*, you can save a pipeline you are working on at any time as
-a *draft*. The pipeline configuration is saved, and you can resume editing later.
-
-To create a draft, give your pipeline a unique name, and then click the *Save* button:
-
-.. figure:: /_images/hydrator-gs-1-5-buttons.png
-  :figwidth: 100%
-  :width: 6in
-  :align: center
-  :class: bordered-image
-
-  **Cask Hydrator Studio:** Button labels, upper-right toolbar
-
-The draft will be created, and will show in your list of pipelines as a draft. 
-Clicking on it in the list of pipelines will re-open it in *Hydrator Studio* so that 
-you can continue working on it.
-
-Note that if you change the name of draft, it doesn't create a new draft with the new name, but
-simply renames the existing draft. Names of drafts must be unique, and names of published pipelines
-must be unique, though you can have a draft that is the same name as a published pipeline.
-
-To successfully publish such a draft, you will need to re-name it to a unique name.
-
-
-Plugin Templates
-----------------
-From within Hydrator Studio, you can create a **plugin template,** a variation
-of a plugin that you can configure with particular settings for re-use. 
-
-To create a plugin-template:
-
-- From within Hydrator Studio, hover your mouse over the plugin you would like to use
-  for your template, such as the *Stream* source plugin.
-
-- In the on-hover menu that appears, click the "+ Template" button.
-
-- The window that appears will allow you to specify the version of the plugin to use. Once
-  you do, the window will expand to allow you to specify the particular properties of that
-  plugin.
-
-- The template will require a name that uniquely identifies it. 
-
-- You can lock individual properties of the configuration so that they are not editable
-  when the template is used.
-
-- When the plugin template is successfully saved, it will appear in with the other plugins, with
-  an additional "T" icon to indicate that it is a template.
-
-- Templates can be either edited or deleted after they are created, using buttons that
-  will appear in their on-hover menu.
-
-Once created, you can use the plugin template just as you would any other plugin, with the
-advantage that it can be pre-configured with settings that you re-use or require.
-
-Preconfigured Pipelines
------------------------
+Pipeline Templates
+------------------
 A collection of predefined and preconfigured pipelines are available from within Hydrator
 Studio through the controls at the top of the left side-bar. These templates can be used
 as the starting point for either your own pipelines or your own pipeline templates.
@@ -544,9 +501,9 @@ as the starting point for either your own pipelines or your own pipeline templat
 First, select which application template you wish to use, either *Data Pipeline* or 
 *ETL Real-time*.
 
-Then, click "Template Gallery" to bring up a dialog that shows the available templates.
-Click on which ever one you'd like, and it will open, allowing you to begin 
-customizing it to your requirements.
+Then, click *Template Gallery* to bring up a dialog that shows the available templates.
+Click on the one you'd like to start with, and it will open, allowing you to begin customizing it
+to your requirements.
 
 .. These names & descriptions were extracted from cdap/cdap-ui/templates/apps/predefined/config.json
 
@@ -578,36 +535,24 @@ These are the available templates:
 
   - **Stream to HBase:** Periodically ingest from a stream into an HBase table
 
+Cloning
+-------
+Any existing pipeline that has been published, can be *cloned.* This creates an in-memory
+copy of the pipeline with the same name and opens it within Hydrator Studio.
 
-Importing
----------
-From within Hydrator Studio, you can import a pipeline configuration JSON file to create a
-new pipeline using the *Import Pipeline* button:
-
-.. figure:: /_images/hydrator-gs-1-5-buttons.png
-   :figwidth: 100%
-   :width: 6in
-   :align: center
-   :class: bordered-image
-
-   **Cask Hydrator Studio:** Button labels, upper-right toolbar
-
-
-As determined by the configuration file, the application template will be set
-appropriately, and may change from the current one.
-
-A valid configuration file that meets the Hydrator configuration file specification is
-required. It may be created from an existing pipeline by exporting its configuration file.
-
+At this point, you can rename the pipeline to a unique name and then either save it as a
+:ref:`draft <cask-hydrator-studio-pipeline-drafts>` or publish it as a new pipeline. As
+you cannot save over an existing pipeline, all new pipelines need a unique name; a common
+practice is to increment the names, from *Demo-1* to *Demo-2* with each new clone. 
 
 Exporting
 ---------
 There are two ways you can export a pipeline configuration file:
 
-1. From with Hydrator Studio; and
+1. From within Hydrator Studio; and
 #. From within a Hydrator pipeline configuration page.
 
-1. From within Hydrator Studio, you can export a pipeline configuration JSON file using
+1. From **within Hydrator Studio**, you can export a pipeline configuration JSON file using
    the *Export...* button:
 
    .. figure:: /_images/hydrator-gs-1-5-buttons.png
@@ -638,7 +583,7 @@ There are two ways you can export a pipeline configuration file:
    similar. The UI information is added in the ``"__ui__"`` object in the JSON configuration
    file.
 
-#. From within a Hydrator pipeline configuration page, there is an *Export* button:
+#. From **within a Hydrator pipeline configuration** page, there is an *Export* button:
 
    .. figure:: /_images/hydrator-pipeline-detail-configuration.png
       :figwidth: 100%
@@ -654,3 +599,24 @@ There are two ways you can export a pipeline configuration file:
    the ``"__ui__"`` object in the JSON.
 
 Files created by exporting can be edited in a text editor and then imported to create new pipelines.
+
+Importing
+---------
+From within Hydrator Studio, you can import a pipeline configuration JSON file to create a
+new pipeline using the *Import Pipeline* button:
+
+.. figure:: /_images/hydrator-gs-1-5-buttons.png
+   :figwidth: 100%
+   :width: 6in
+   :align: center
+   :class: bordered-image
+
+   **Cask Hydrator Studio:** Button labels, upper-right toolbar
+
+
+As determined by the configuration file, the application template will be set
+appropriately, and may change from the current one.
+
+A valid configuration file that meets the Hydrator configuration file specification is
+required. It may be created from an existing pipeline by exporting its configuration file.
+

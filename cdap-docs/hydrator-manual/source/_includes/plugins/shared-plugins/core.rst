@@ -8,15 +8,14 @@
 CoreValidator
 =============
 
-Hydrator Version |cask-hydrator-version|
-
 .. rubric:: Description
 
-A system-supplied validator that offers a set of functions that can be called from the validator transform.
+A system-supplied validator that offers a set of functions that can be called from the Validator transform.
 
 It is included in a transform by adding its name (``core``) to the ``validators`` field of
 the transform configuration and its functions are referenced by using its JavaScript name
-(``coreValidator``). See an example in the Transforms Validator plugin.
+(``coreValidator``). See an example in the Validator transforms plugin, either for
+`batch <../batch/transforms/validator.html>`__ or `real-time <../realtime/transforms/validator.html>`__.
 
 .. rubric:: Use Case
 
@@ -31,3 +30,5 @@ This table lists the methods available in ``CoreValidator`` that can be called f
 .. Imports functions found in the file Validator-transform.md
 
 .. include:: /../target/_includes/plugins/_includes/validator-extract.txt
+
+Hydrator Version |cask-hydrator-version|

@@ -12,18 +12,25 @@ A quick tutorial, covering the basics of Hydrator. It assumes that you are famil
 CDAP, and the concepts of streams, datasets, and applications in CDAP and basic operations
 in the CDAP UI, such as entering events into a stream and exploring a dataset:
 
-  1. :ref:`Install CDAP and start Hydrator Studio <cask-hydrator-getting-started-install>`
-  #. :ref:`Quick Tour of Hydrator Studio Components <cask-hydrator-getting-started-studio>`
-  #. :ref:`Creating a Simple Pipeline <cask-hydrator-getting-started-simple>`
+  1. `Install CDAP`_
+  #. `Start Hydrator`_
+  #. `Start Hydrator Studio`_
+  #. `Quick Tour of Hydrator Studio`_
+  #. `Creating a Simple Pipeline`_
 
 
 .. _cask-hydrator-getting-started-install:
 
-Install CDAP and start Hydrator Studio
-======================================
+Install CDAP
+============
 
 - If you haven't already, :ref:`download and install the CDAP SDK <standalone-index>`.
 - :ref:`Start CDAP <start-stop-cdap>`, open up a web browser, and go to the :cdap-ui:`CDAP UI <>`.
+
+.. _cask-hydrator-getting-started-hydrator:
+
+Start Hydrator
+==============
 
 - To start Hydrator, either select *Cask Hydrator* from the pull-down menu in the upper
   left, or go to the :cask-hydrator:`Cask Hydrator URL <>`.
@@ -37,6 +44,11 @@ Install CDAP and start Hydrator Studio
      :class: bordered-image
 
      **Cask Hydrator:** List of Pipelines
+
+.. _cask-hydrator-getting-started-hydrator-studio:
+
+Start Hydrator Studio
+=====================
 
 - To start *Hydrator Studio* and start creating a pipeline, do any of these:
 
@@ -85,24 +97,27 @@ by dragging and dropping icons from the left sidebar.
 
 The image shows an existing **pipeline**, with three **plugin icons** in place and connected.
 
-Note that icons are one of three colors:
+Note that icons are of different colors:
 
-- **Green:** a data **generator**, with only a **right-side** connection node, such as a source
+- **Green:** a data **generator**, with only a **right-side** connection node, such as a *source*
   plugin
 
 - **Blue:** a data **receiver and generator**, with **both left and right** connection nodes, such
-  as a transform, aggregate, or compute plugin
+  as a *transform*, *aggregate*, or *compute* plugin
 
-- **Purple:** a data **receiver**, with only a **left-side** connection node, such as a sink or
-  model plugin
+- **Purple:** a data **receiver**, with only a **left-side** connection node, such as a *sink* or
+  *model* plugin
+  
+- **Brown:** an **control**, octagonal-shaped, with **both left and right** connection nodes, such
+  as an *action* plugin
 
 The small yellow circles with numerals show that there are **missing configuration
 values** for the different plugins.
 
 Between the icons are grey **connection lines**, with the arrow indicating the direction
-of data flow.
+of data flow. Solid lines indicate data flow; dashed lines indicate control flow.
 
-The small boxes in the middle of the connection lines are the **schema buttons**, which
+The small boxes in the middle of the solid connection lines are the **schema buttons**, which
 will indicate the schema being used for the data at that point in the pipeline.
 
 Now, let's create a pipeline!
@@ -203,13 +218,16 @@ parses them into separate fields, and writes them as individual records to a tab
       
    Clicking the *Validate* button should produce a message in the console similar to this::
    
-    XX/XX/XX XX:XX:XX am: Validation success! Pipeline demoPipeline is valid.
+    xx/xx/xx xx:xx:xx am: Validation success! Pipeline demoPipeline is valid.
 
 #. If there are any errors, correct them before continuing. 
 
    Otherwise, click the *Publish* button: the pipeline configuration will be saved; a CDAP
    application will be created, based on the configuration you have set, complete with a
-   stream and dataset table; and the application will be ready to run. 
+   stream and dataset table; and the application will be ready to run.
+  
+   Note that errors can occur at the publishing phase that were not caught during
+   validation; resolve those, if any, before continuing.
    
    The view changes to show the completed application:
    
@@ -274,10 +292,10 @@ parses them into separate fields, and writes them as individual records to a tab
    *demoTable* dataset, and run a default explore query that selects the first five records, 
    by:
    
-     - clicking on *Datasets*;
-     - clicking *demoTable*;
-     - clicking *Explore*; and
-     - clicking *Execute SQL*
+   - clicking on *Datasets*; then
+   - clicking *demoTable*; then
+   - clicking *Explore*; and finally
+   - clicking *Execute SQL*:
 
     .. figure:: /_images/hydrator-gs-1-10-demotable.png
       :figwidth: 100%
