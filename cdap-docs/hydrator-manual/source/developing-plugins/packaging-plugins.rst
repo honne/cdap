@@ -16,12 +16,12 @@ Packaging Plugins
 
 To **package, present,** and **deploy** your plugin, see these instructions:
 
-- :ref:`Plugin Packaging: <cask-hydrator-packaging-plugins>` packaging in a JAR
+- :ref:`Plugin Packaging: <cask-hydrator-packaging-plugins-packaging>` packaging in a JAR
 - :ref:`Plugin Presentation: <cask-hydrator-packaging-plugins-presentation>` controlling
   how your plugin appears in the Hydrator Studio
 
 If you are installing a **third-party JAR** (such as a **JDBC driver**) to make it accessible to other
-plugins or applications, see :ref:`these instructions <cask-hydrator-third-party-plugins>`.
+plugins or applications, see :ref:`these instructions <cask-hydrator-plugin-management-third-party-plugins>`.
 
 ..   - UI
 ..   - REST
@@ -29,17 +29,19 @@ plugins or applications, see :ref:`these instructions <cask-hydrator-third-party
 
 .. Plugin Packaging
 .. ----------------
+.. _cask-hydrator-packaging-plugins-packaging:
 
 .. include:: /../../developers-manual/source/building-blocks/plugins.rst
    :start-after: .. _plugins-deployment-packaging:
    :end-before:  .. _plugins-deployment-system:
    
-By using one of the ``etl-plugin`` Maven archetypes, your project will be set up to generate
-the required JAR manifest. If you move the plugin class to a different Java package after
-the project is created, you will need to modify the configuration of the
+By using one of the available :ref:`Maven archetypes
+<cask-hydrator-developing-plugin-basics-maven-archetypes>`, your project will be set up to
+generate the required JAR manifest. If you move the plugin class to a different Java
+package after the project is created, you will need to modify the configuration of the
 ``maven-bundle-plugin`` in the ``pom.xml`` file to reflect the package name changes.
 
-If you are developing plugins for the ``cdap-etl-batch`` artifact, be aware that for
+If you are developing plugins for the ``cdap-data-pipeline`` artifact, be aware that for
 classes inside the plugin JAR that you have added to the Hadoop Job configuration directly
 (for example, your custom ``InputFormat`` class), you will need to add the Java packages
 of those classes to the "Export-Package" as well. This is to ensure those classes are
@@ -52,9 +54,9 @@ execution will typically fail with a ``ClassNotFoundException``.
 Plugin Presentation
 -------------------
 When a plugin is displayed in the CDAP UI, its properties are represented by widgets in
-the Cask Hydrator Studio. Each property of a plugin is represented, by default, as a
+the Cask Hydrator Studio. Each property of a plugin is represented by default as a
 textbox in the user interface. By including an appropriate plugin widget JSON file, you
-can customize that presentation.
+can customize that presentation to use a different interface, if desired.
 
 .. _cask-hydrator-creating-custom-plugins-widget-json:
 
@@ -66,7 +68,7 @@ in the CDAP UI.
 
 The widget JSON is composed of two lists:
 
-- a list of property configuration groups and
+- a list of property configuration groups; and
 - a list of output properties.
 
 .. highlight:: json-ellipsis  
@@ -137,7 +139,7 @@ case-sensitive.
 To find the available field names, you can use the Artifact HTTP RESTful API to
 :ref:`retrieve plugin details <http-restful-api-artifact-plugin-detail>` for an artifact,
 which will include all the available names. (If the artifact is your own, you will already
-know the available field names.)
+know the available field names from your source code.)
 
 In the case of our *Batch Source* plugin example, the ``configuration-groups`` can be
 represented by::

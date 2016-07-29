@@ -69,8 +69,9 @@ to another. When data arrives at a stage, it triggers that stage's processing of
 and then the transference of results (if any) to the next stage.
 
 **Control flow** is a parallel process that triggers a stage based on the result from
-another process, independent of the pipeline. Currently, control flow can be applied to
-the initial and final stages of a pipeline, with a post-run stage available after each
+another process, independent of the pipeline. Currently, control flow can be applied
+*only* to the *initial* stages (before any data flow stages run) and *final* stages (after
+all other data flow stages run) of a pipeline. A *post-run* stage is available after each
 pipeline run, successful or otherwise.
 
 Logical and Physical Pipelines

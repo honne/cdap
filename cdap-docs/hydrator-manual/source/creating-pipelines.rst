@@ -29,9 +29,9 @@ CDAP currently provides two artifacts (referred to as *system artifacts*):
 - ``cdap-data-pipeline`` (for batch pipelines)
 - ``cdap-etl-realtime`` (for realtime pipelines)
 
-which are used to create the different kinds of data pipeline applications. (A third
-system artifact, ``cdap-etl-batch`` has been deprecated and replaced by the
-``cdap-data-pipeline`` artifact, as of CDAP 3.5.0.)
+which are used to create the different kinds of data pipeline applications. (**Note:** *A third
+system artifact,* ``cdap-etl-batch`` *has been deprecated and replaced by the*
+``cdap-data-pipeline`` *artifact, as of CDAP 3.5.0.*)
 
 An additional system artifact (``cdap-etl-lib``) provides common resources for the other
 system artifacts, and can be used by developers of custom plugins.
@@ -228,12 +228,36 @@ or by setting the engine property in the configuration file for the pipeline::
 This determines the particular engine that will be used when the physical pipeline is
 created.
 
+.. _cask-hydrator-creating-pipelines-actions:
+
+Actions
+-------
+Actions can be configured for a batch pipeline, either by using the Hydrator Studio or by
+including a stage of type ``action`` in the configuration JSON file. The available actions
+are determined by those available to the application template being used to create the
+pipeline.
+
+If configured, the action takes place either at the start or at the completion of a
+pipeline run. All actions configured for the start will complete first before any other
+stages, and all other stages will complete before any of the actions at the end are run.
+
+Actions at the end will only run if the pipeline successfully completes. If you need an
+action to run irregardless of completion, use a :ref:`post-run action
+<cask-hydrator-creating-pipelines-post-run-actions>` instead.
+
+Currently, action plugins are only available when using the ``cdap-data-pipeline``
+application template. Available action plugins are documented in the :ref:`Plugin
+Reference <cask-hydrator-action-plugins>`, with this action available:
+
+- *SSH Action*, which establishes an SSH connection with a remote machine to execute a
+  command on that machine.
+
 .. _cask-hydrator-creating-pipelines-post-run-actions:
 
 Post-run Actions
 ----------------
 Post-run actions can be configured for a batch pipeline, either by using the Hydrator Studio or
-by setting the "postRunActions" property of the configuration JSON file. The available
+by setting the "postActions" property of the configuration JSON file. The available
 actions are determined by the post-run plugins that are available to the application
 template being used to create the pipeline.
 

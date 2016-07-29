@@ -10,9 +10,11 @@ Developing Pipelines
 
 .. highlight:: console
 
-This section will be of interest to developers creating pipelines using command line tools.
+This section is intended for developers creating pipelines using command line tools. Users of
+pipelines should refer to the documentation on :ref:`creating pipelines
+<cask-hydrator-creating-pipelines>`.
 
-As mentioned in the page on :ref:`cask-hydrator-creating-pipelines`, there are two
+As mentioned in :ref:`creating pipelines <cask-hydrator-creating-pipelines>`, there are two
 different methods for creating pipeline applications:
 
 1. Using Hydrator Studio
@@ -120,7 +122,7 @@ The format of the ``config`` object:
    * - ``engine``
      - One of "mapreduce" or "spark", used only in batch pipelines
    * - ``postActions``
-     - List of ``postaction`` objects; optional, can be an empty list
+     - List of ``postaction`` (post-run action) objects; optional, can be an empty list
    * - ``instances``
      - Positive integer of the number of worker instances, defaults to 1 if not specified,
        used only in real-time pipelines
@@ -869,4 +871,4 @@ Prebuilt JARs
 -------------
 In a case where you'd like to use prebuilt third-party JARs (such as a JDBC driver) as a
 plugin, please refer to the section on :ref:`Deploying Third-Party Jars
-<cask-hydrator-third-party-plugins>`. 
+<cask-hydrator-plugin-management-third-party-plugins>`. 

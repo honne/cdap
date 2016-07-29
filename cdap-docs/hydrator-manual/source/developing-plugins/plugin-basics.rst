@@ -8,8 +8,8 @@
 Plugin Basics
 =============
 
-Types and Maven Archetypes
-==========================
+Plugin Types
+============
 In Cask Hydrator, these plugin types are presently used:
 
 - Action (*action*, restricted to batch pipelines)
@@ -23,6 +23,10 @@ In Cask Hydrator, these plugin types are presently used:
 - Spark Sink (*sparksink*) 
 - Post-run Action (*postaction*, restricted to batch pipelines)
 
+.. _cask-hydrator-developing-plugin-basics-maven-archetypes:
+
+Maven Archetypes
+================
 To get started on creating a custom plugin, you can use one of these Maven archetypes to create your project: 
 
 - ``cdap-data-pipeline-plugins-archetype`` (contains batch, Spark plugin, and other types)

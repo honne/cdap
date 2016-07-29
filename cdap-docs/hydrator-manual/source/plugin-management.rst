@@ -8,21 +8,32 @@
 Plugin Management
 =================
 
-.. NOTE: Because of the included files in this file, use these levels for headlines/titles:
-  .. one   -----
-  .. two   .....
-  .. three `````
-  .. etc.
+This section covers how to mange the deployment of plugins on your system:
 
-To **package, present,** and **deploy** your plugin, see these instructions:
+- :ref:`Plugin Deployment: <cask-hydrator-plugin-management-deployment>` deploying as
+  either a system or user *artifact*
 
-- `Plugin Packaging: <#plugin-packaging>`__ packaging in a JAR
-- `Plugin Presentation: <#plugin-presentation>`__ controlling how your plugin appears in the Hydrator Studio
-- `Plugin Deployment: <#deploying-a-system-artifact>`__ deploying as either a system or user *artifact*
-- `Deployment Verification: <#deployment-verification>`__ verifying an artifact was added successfully
+- :ref:`Deployment Verification: <plugins-deployment-verification>` verifying that an
+  artifact was deployed successfully
 
-If you are installing a **third-party JAR** (such as a **JDBC driver**) to make it accessible to other
-plugins or applications, see :ref:`these instructions <cask-hydrator-third-party-plugins>`.
+- :ref:`Deploying Third-party JARs: <cask-hydrator-plugin-management-third-party-plugins>`
+  making JDBC drivers and other artifacts available to applications 
+
+- :ref:`Managing Multiple Version: <cask-hydrator-plugin-management-multiple-versions>` 
+  different versions can co-exist and be available at the same time
+
+- :ref:`Deleting Plugins: <cask-hydrator-plugin-management-deleting-plugins>` removing
+  deployed artifacts from CDAP
+
+If you are creating your own plugins, see the section on :ref:`developing plugins
+<cask-hydrator-developing-plugins>` for information on writing plugins, including
+:ref:`packaging plugins in a JAR <cask-hydrator-packaging-plugins-packaging>` and
+their :ref:`presentation in a UI <cask-hydrator-packaging-plugins-presentation>`
+such as Hydrator Studio.
+
+If you are installing a **third-party JAR** (such as a **JDBC driver**) to make it
+accessible to other plugins or applications, see :ref:`these instructions
+<cask-hydrator-plugin-management-third-party-plugins>`.
 
 
 Available Plugins
@@ -40,13 +51,13 @@ Deploying Plugins
 .. include:: /../../developers-manual/source/building-blocks/plugins.rst
    :start-after: .. _plugins-deployment-artifact:
    :end-before:  .. _plugins-deployment-packaging:
-   
+
 .. include:: /../../developers-manual/source/building-blocks/plugins.rst
    :start-after: .. _plugins-deployment-system:
    :end-before:  .. _plugins-use-case:
 
 
-.. _cask-hydrator-third-party-plugins:
+.. _cask-hydrator-plugin-management-third-party-plugins:
 
 Deploying Third-Party JARs
 ==========================
@@ -84,6 +95,8 @@ A sample JDBC Driver Plugin configuration:
     }
 
 
+.. _cask-hydrator-plugin-management-multiple-versions:
+
 Managing Multiple Versions
 ==========================
 Different versions of the same plugin (or artifact) can be loaded and available at the
@@ -94,6 +107,8 @@ possible choices when selecting a plugin or creating a :ref:`plugin template
 to create an application, the highest version currently available in the system will be
 used.
 
+
+.. _cask-hydrator-plugin-management-deleting-plugins:
 
 Deleting Plugins
 ================

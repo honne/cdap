@@ -23,17 +23,15 @@ to enable the building, deploying, and managing of data pipelines.
 .. |concepts-design| replace:: **Concepts and Design:**
 .. _concepts-design: concepts-design.html
 
-- |concepts-design|_ **Pipelines**, **plugins**, and **Cask Hydrator Studio**
-
-
 .. |getting-started| replace:: **Getting Started:**
 .. _getting-started: getting-started.html
 
-- |getting-started|_ A tutorial demonstrating the basics of building and running pipelines
-
-
 .. |studio| replace:: **Hydrator Studio:**
 .. _studio: studio.html
+
+- |concepts-design|_ **Pipelines**, **plugins**, and **Cask Hydrator Studio**
+
+- |getting-started|_ A tutorial demonstrating the basics of building and running a pipeline
 
 - |studio|_ The **UI of Hydrator** for creating pipelines
 
@@ -41,42 +39,36 @@ to enable the building, deploying, and managing of data pipelines.
 .. |creating-pipelines| replace:: **Creating Pipelines:**
 .. _creating-pipelines: creating-pipelines.html
 
-- |creating-pipelines|_ Including **configuring, cloning,** and **publishing** pipelines
-
-
 .. |running-pipelines| replace:: **Running Pipelines:**
 .. _running-pipelines: running-pipelines.html
 
-- |running-pipelines|_ Including **running** and **upgrading existing** pipelines
+.. |plugin-management| replace:: **Plugin Management:**
+.. _plugin-management: plugin-management.html
+
+.. |plugins| replace:: **Plugin Reference:**
+.. _plugins: plugins/index.html
+
+- |creating-pipelines|_ Including **configuring, publishing,** and **cloning** pipelines
+
+- |running-pipelines|_ Including **runtime arguments, notifications** and **upgrading existing** pipelines
+
+- |plugin-management|_ Deploying plugins and **third-party JARs**, deleting and managing versions
+
+- |plugins|_ Reference to using the **plugins included in CDAP**
 
 
 .. |developing-pipelines| replace:: **Developing Pipelines:**
 .. _developing-pipelines: developing-pipelines.html
 
-- |developing-pipelines|_ Using tools outside of Hydrator Studio to create pipelines
-
-
-.. |plugin-management| replace:: **Plugin Management:**
-.. _plugin-management: plugin-management.html
-
-- |plugin-management|_ Deploying plugins and **third-party JARs**, updating, deleting and **managing versions**
-
-
-.. |plugins| replace:: **Plugin Reference:**
-.. _plugins: plugins/index.html
-
-- |plugins|_ Reference to using the **plugins included in CDAP**, and creating and
-  installing **custom plugins**
-
-
 .. |developing-plugins| replace:: **Developing Plugins:**
 .. _developing-plugins: developing-plugins.html
 
-- |developing-plugins|_ Developing custom plugins and using the **test framework** for plugins
-
-
 .. |how-hydrator-works| replace:: **How Hydrator Works:**
 .. _how-hydrator-works: how-hydrator-works.html
+
+- |developing-pipelines|_ Using tools outside of Hydrator Studio to create pipelines
+
+- |developing-plugins|_ Developing custom plugins and using the **test framework** for plugins
 
 - |how-hydrator-works|_ A **"behind-the-scenes"** of how it works
     
@@ -84,13 +76,14 @@ to enable the building, deploying, and managing of data pipelines.
 .. |faqs| replace:: **FAQs:**
 .. _faqs: faqs.html
 
-- |faqs|_ Frequently-asked-questions relevant to Cask Hydrator and pipelines
-
-
 .. |glossary| replace:: **Glossary:**
 .. _glossary: glossary.html
 
+- |faqs|_ Frequently-asked-questions relevant to Cask Hydrator and pipelines
+
 - |glossary|_ Terms particular to Cask Hydrator and pipelines
+
+
 
 .. SIDEBAR ON ANNOTATION SYSTEM START
 
