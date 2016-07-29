@@ -18,6 +18,7 @@ package co.cask.cdap.internal.app.namespace;
 
 import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.common.conf.Constants;
+import co.cask.cdap.common.io.Locations;
 import co.cask.cdap.common.namespace.NamespaceQueryAdmin;
 import co.cask.cdap.common.namespace.NamespacedLocationFactory;
 import co.cask.cdap.explore.client.ExploreFacade;
@@ -103,8 +104,10 @@ abstract class AbstractStorageProviderNamespaceAdmin implements StorageProviderN
     Location namespaceHome = namespacedLocationFactory.get(namespaceId.toId());
     try {
       if (hasCustomLocation(namespaceQueryAdmin.get(namespaceId.toId()))) {
-        LOG.debug("Custom location mapping %s was found while deleting namespace %s. Skipping location delete.",
-                  namespaceHome, namespaceId);
+        LOG.debug("Custom location mapping %s was found while deleting namespace %s. Deleting all data inside it but" +
+                    "skipping namespace home directory delete.", namespaceHome, namespaceId);
+        // delete everything inside the namespace home but not the namespace home as its user owned directory
+        Locations.deleteContent(namespaceHome);
       } else {
         // a custom location was not provided for this namespace so cdap is responsible for managing the lifecycle of
         // the location hence delete it.
@@ -134,11 +137,19 @@ abstract class AbstractStorageProviderNamespaceAdmin implements StorageProviderN
       // namespaceLocationFactory since the location needs to be aware of local/distributed fs.
       Location customNamespacedLocation = namespacedLocationFactory.get(namespaceMeta.getNamespaceId().toId());
       if (!customNamespacedLocation.exists()) {
-        // TODO: Add username in the below exception message.
         throw new IOException(String.format(
           "The provided home directory '%s' for namespace '%s' does not exists. Please create it on filesystem " +
-            "with sufficient privileges for the user and then try creating a namespace.",
-          customNamespacedLocation.toString(), namespaceMeta.getNamespaceId()));
+            "with sufficient privileges for the user %s and then try creating a namespace.",
+          customNamespacedLocation.toString(), namespaceMeta.getNamespaceId(),
+          namespaceMeta.getConfig().getPrincipal()));
+      }
+      // we also expect it to empty since non-empty directories can lead to various inconsistencies CDAP-6743
+      if (!customNamespacedLocation.list().isEmpty()) {
+        throw new IOException(String.format(
+          "The provided home directory '%s' for namespace '%s' is not empty. Please try creating the namespace " +
+            "again with an empty directory mapping and sufficient privileges for the user %s.",
+          customNamespacedLocation.toString(), namespaceMeta.getNamespaceId(),
+          namespaceMeta.getConfig().getPrincipal()));
       }
     } else {
       // no namespace custom location was provided one must be created by cdap
