@@ -175,8 +175,8 @@ Configuring Resources
 =====================
 Resources for pipelines can be configured as any other CDAP workflow application.
 
-See the Administration Manual sections on :ref:`Scaling Instances <cdapadmin:scaling-instances>` and 
-:ref:`Resource Guarantees for CDAP Programs in YARN <cdapadmin:resource-guarantees>`.
+See the Administration Manual sections on :ref:`Scaling Instances <admin:scaling-instances>` and 
+:ref:`Resource Guarantees for CDAP Programs in YARN <admin:resource-guarantees>`.
 
 
 .. _cask-hydrator-operating-upgrading-pipeline:

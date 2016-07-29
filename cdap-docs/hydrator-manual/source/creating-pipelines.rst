@@ -33,7 +33,7 @@ which are used to create the different kinds of data pipeline applications. (**N
 system artifact,* ``cdap-etl-batch`` *has been deprecated and replaced by the*
 ``cdap-data-pipeline`` *artifact, as of CDAP 3.5.0.*)
 
-An additional system artifact (``cdap-etl-lib``) provides common resources for the other
+An additional system artifact (``core-plugins``) provides common resources for the other
 system artifacts, and can be used by developers of custom plugins.
 
 Pipelines can be created using Cask Hydrator's included visual editor (*Cask Hydrator
