@@ -38,22 +38,18 @@ artifact.
 
 - |plugin-basics|_ Types, maven archetypes, annotations, and plugin configurations
 
-
 .. |creating-a-plugin| replace:: **Creating a Plugin:**
 .. _creating-a-plugin: creating-a-plugin.html
 
 - |creating-a-plugin|_ Java methods that need to be implemented for each plugin type
-
 
 .. |testing-plugins| replace:: **Testing Plugins:**
 .. _testing-plugins: testing-plugins.html
 
 - |testing-plugins|_ Using CDAP testing facilities and the Hydrator test module
 
-
 .. |packaging-plugins| replace:: **Packaging Plugins:**
 .. _packaging-plugins: packaging-plugins.html
 
 - |packaging-plugins|_ :ref:`Packaging a plugin in a JAR <cask-hydrator-packaging-plugins>`, and
   :ref:`controlling how your plugin appears in the Hydrator Studio <cask-hydrator-packaging-plugins-presentation>`.
-  

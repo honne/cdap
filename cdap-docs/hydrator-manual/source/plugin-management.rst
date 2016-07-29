@@ -25,15 +25,18 @@ If you are installing a **third-party JAR** (such as a **JDBC driver**) to make 
 plugins or applications, see :ref:`these instructions <cask-hydrator-third-party-plugins>`.
 
 
-Listing Plugins
-===============
-To Be Completed
+Available Plugins
+=================
+Plugins available with CDAP are listed beginning on a :ref:`separate reference page <cask-hydrator-plugins>`.
+User-installed plugins are not listed there, but if they are installed correctly, the reference
+documentation for the plugin will be available through the :ref:`Hydrator Studio <cask-hydrator-studio>`.
 
 
 .. _cask-hydrator-plugin-management-deployment:
 
 Deploying Plugins
 =================
+
 .. include:: /../../developers-manual/source/building-blocks/plugins.rst
    :start-after: .. _plugins-deployment-artifact:
    :end-before:  .. _plugins-deployment-packaging:
@@ -83,7 +86,13 @@ A sample JDBC Driver Plugin configuration:
 
 Managing Multiple Versions
 ==========================
-To Be Completed
+Different versions of the same plugin (or artifact) can be loaded and available at the
+same time. These will appear in the :ref:`Hydrator Studio <cask-hydrator-studio>` as
+possible choices when selecting a plugin or creating a :ref:`plugin template
+<cask-hydrator-studio-plugin-templates>`. If no version is specified for a plugin the
+:ref:`configuration file <hydrator-developing-pipelines-configuration-file-format>` used
+to create an application, the highest version currently available in the system will be
+used.
 
 
 Deleting Plugins
@@ -101,4 +110,3 @@ files are not removed after these references are deleted, then |---| in the case
 ``system`` scope plugins |---|, the artifacts will be reloaded the next time CDAP is
 restarted, as they are automatically loaded at startup from the `appropriate directory
 <plugin-management#deploying-as-a-system-artifact>`_.
-

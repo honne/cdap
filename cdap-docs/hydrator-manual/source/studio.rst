@@ -85,6 +85,8 @@ published pipeline.
 To successfully publish such a draft (one whose name matches an existing pipeline), you
 will need to re-name it to a unique name.
 
+.. _cask-hydrator-studio-plugin-templates:
+
 Plugin Templates
 ================
 Within Hydrator Studio, you can create *plugin templates:* customized versions of a plugin

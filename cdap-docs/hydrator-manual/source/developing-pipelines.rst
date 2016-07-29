@@ -211,7 +211,7 @@ when the run completes, a post-run action send an email indicating that the run 
     {
       "name": "streamETLApp",
       "artifact": {
-        "name": "cdap-etl-batch",
+        "name": "cdap-data-pipeline",
         "version": "|release|",
         "scope": "system"
       },
@@ -451,7 +451,7 @@ filtering logic is applied by using an included script in the step
     {
       "name": "forkedPipeline",
       "artifact": {
-        "name": "cdap-etl-batch",
+        "name": "cdap-data-pipeline",
         "version": "|release|",
         "scope": "SYSTEM"
       },
@@ -581,11 +581,11 @@ of received records will vary.
 .. container:: highlight
 
   .. parsed-literal::
-  
+
     {
       "name": "mergedPipeline",
       "artifact": {
-          "name": "cdap-etl-batch",
+          "name": "cdap-data-pipeline",
           "version": "|release|",
           "scope": "SYSTEM"
       },
@@ -594,51 +594,43 @@ of received records will vary.
         "engine": "mapreduce",
         "postActions": [],
         "stages": [
-
           {
-          "name": "purchaseStream",
-          "plugin": {
-            "name": "Stream",
-            "properties": {
-              "format": "csv",
-              "schema": "{
-                \"type\":\"record\",
-                \"name\":\"etlSchemaBody\",
-                \"fields\":[
-                  {\"name\":\"userid\",\"type\":\"string\"},
-                  {\"name\":\"item\",\"type\":\"string\"},
-                  {\"name\":\"count\",\"type\":\"int\"},
-                  {\"name\":\"price\",\"type\":\"long\"}
-                ]
-              }",
-              "name": "purchases",
-              "duration": "1d"
-            }
-          }
-        },
-        "sinks": [
-          {
-            "name": "rewardsSink",
+            "name": "purchaseStream",
             "plugin": {
-              "name": "TPFSAvro",
+              "name": "Stream",
+              "type": "batchstream",
+              "artifact": {
+                "name": "core-plugins",
+                "version": "1.4.0-SNAPSHOT",
+                "scope": "SYSTEM"
+              },
               "properties": {
+                "format": "csv",
                 "schema": "{
                   \"type\":\"record\",
                   \"name\":\"etlSchemaBody\",
                   \"fields\":[
                     {\"name\":\"userid\",\"type\":\"string\"},
-                    {\"name\":\"rewards\",\"type\":\"double\"}
+                    {\"name\":\"item\",\"type\":\"string\"},
+                    {\"name\":\"count\",\"type\":\"int\"},
+                    {\"name\":\"price\",\"type\":\"long\"}
                   ]
-                }"
+                }",
+                "name": "purchases",
+                "duration": "1d"
               }
             }
-          }
-        ],
-        "transforms": [
+          },
           {
             "name": "userRewards",
             "plugin": {
               "name": "Script",
+              "type": "transform",
+              "artifact": {
+                "name": "core-plugins",
+                "version": "1.4.0-SNAPSHOT",
+                "scope": "SYSTEM"
+              },
               "properties": {
                 "script": "function transform(input, context) {
                   var rewards = 5;
@@ -666,6 +658,12 @@ of received records will vary.
             "name": "itemRewards",
             "plugin": {
               "name": "Script",
+              "type": "transform",
+              "artifact": {
+                "name": "core-plugins",
+                "version": "1.4.0-SNAPSHOT",
+                "scope": "SYSTEM"
+              },
               "properties": {
                 "script": "function transform(input, context) {
                   var rewards = 5;
@@ -674,6 +672,28 @@ of received records will vary.
                   }
                   return {'userid':input.userid, 'rewards':rewards};
                 }",
+                "schema": "{
+                  \"type\":\"record\",
+                  \"name\":\"etlSchemaBody\",
+                  \"fields\":[
+                    {\"name\":\"userid\",\"type\":\"string\"},
+                    {\"name\":\"rewards\",\"type\":\"double\"}
+                  ]
+                }"
+              }
+            }
+          },
+          {
+            "name": "rewardsSink",
+            "plugin": {
+              "name": "TPFSAvro",
+              "type": "batchsink",
+              "artifact": {
+                "name": "core-plugins",
+                "version": "1.4.0-SNAPSHOT",
+                "scope": "SYSTEM"
+              },
+              "properties": {
                 "schema": "{
                   \"type\":\"record\",
                   \"name\":\"etlSchemaBody\",
@@ -704,11 +724,9 @@ of received records will vary.
             "to": "rewardsSink"
           }
         ],
-        "comments": [],
-        "schedule": "\* \* \* \* \*",
-        "engine": "mapreduce"
       }
     }
+
 
 Sample Pipeline Configurations
 ==============================
@@ -723,33 +741,45 @@ Sample configuration for using a *Database Source* and a *Database Sink*:
   
     {
       "artifact": {
-        "name": "cdap-etl-batch",
+        "name": "cdap-data-pipeline",
         "version": "|version|",
         "scope": "system"
       },
       "config": {
         "schedule": "\* \* \* \* \*",
-        "source": {
-          "name": "databaseSource",
-          "plugin": {
-            "name": "Database",
-            "properties": {
-              "importQuery": "select id,name,age from my_table",
-              "countQuery": "select count(id) from my_table",
-              "connectionString": "\jdbc:mysql://localhost:3306/test",
-              "tableName": "src_table",
-              "user": "my_user",
-              "password": "my_password",
-              "jdbcPluginName": "jdbc_plugin_name_defined_in_jdbc_plugin_json_config",
-              "jdbcPluginType": "jdbc_plugin_type_defined_in_jdbc_plugin_json_config"
+        "stages": [
+          {
+            "name": "databaseSource",
+            "plugin": {
+              "name": "Database",
+              "type": "batchsource",
+              "artifact": {
+                "name": "core-plugins",
+                "version": "1.4.0-SNAPSHOT",
+                "scope": "SYSTEM"
+              },
+              "properties": {
+                "importQuery": "select id,name,age from my_table",
+                "countQuery": "select count(id) from my_table",
+                "connectionString": "\jdbc:mysql://localhost:3306/test",
+                "tableName": "src_table",
+                "user": "my_user",
+                "password": "my_password",
+                "jdbcPluginName": "jdbc_plugin_name_defined_in_jdbc_plugin_json_config",
+                "jdbcPluginType": "jdbc_plugin_type_defined_in_jdbc_plugin_json_config"
+              }
             }
-          }
-        },
-        "sinks": [
+          },
           {
             "name": "databaseSink",
             "plugin": {
               "name": "Database",
+              "type": "batchsink",
+              "artifact": {
+                "name": "core-plugins",
+                "version": "1.4.0-SNAPSHOT",
+                "scope": "SYSTEM"
+              },
               "properties": {
                 "columns": "id,name,age",
                 "connectionString": "\jdbc:mysql://localhost:3306/test",
@@ -762,7 +792,6 @@ Sample configuration for using a *Database Source* and a *Database Sink*:
             }
           }
         ],
-        "transforms": [ ],
         "connections": [
           {
             "from": "databaseSource",
@@ -771,6 +800,7 @@ Sample configuration for using a *Database Source* and a *Database Sink*:
         ]
       }
     }
+
   
 Kafka Source
 ------------
@@ -782,41 +812,53 @@ creating the source:
   .. parsed-literal::
   
     {
+      "name": "KafkaPipeline",
       "artifact": {
         "name": "cdap-etl-realtime",
         "version": "|version|",
         "scope": "system"
       },
       "config": {
-        "instances": 1,
-        "source": {
-          "name": "kafkaSource",
-          "plugin": {
-            "name": "Kafka",
-            "properties": {
-              "kafka.partitions": "1",
-              "kafka.topic": "test",
-              "kafka.brokers": "localhost:9092"
-            }
+        "connections": [
+          {
+            "from": "kafkaSource",
+            "to": "streamSink"
           }
-        },
-        "sinks": [
+        ]
+        "instances": 1,
+        "stages": [
+          {
+            "name": "kafkaSource",
+            "plugin": {
+              "name": "Kafka",
+              "type": "realtimesource",
+              "artifact": {
+                "name": "core-plugins",
+                "version": "1.4.0-SNAPSHOT",
+                "scope": "SYSTEM"
+              },
+              "properties": {
+                "kafka.partitions": "1",
+                "kafka.topic": "test",
+                "kafka.brokers": "localhost:9092"
+              }
+            }
+          },
           {
             "name": "streamSink",
             "plugin": {
               "name": "Stream",
+              "type": "realtimesink",
+              "artifact": {
+                "name": "core-plugins",
+                "version": "1.4.0-SNAPSHOT",
+                "scope": "SYSTEM"
+              },
               "properties": {
                 "name": "myStream",
                 "body.field": "message"
               }
             }
-          }
-        ],
-        "transforms": [ ],
-        "connections": [
-          {
-            "from": "kafkaSource",
-            "to": "streamSink"
           }
         ]
       }
