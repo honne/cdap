@@ -17,11 +17,13 @@
 package co.cask.cdap.cli;
 
 import co.cask.cdap.StandaloneTester;
+import co.cask.cdap.cli.command.NamespaceCommandUtils;
 import co.cask.cdap.cli.util.RowMaker;
 import co.cask.cdap.cli.util.table.Table;
 import co.cask.cdap.client.DatasetTypeClient;
 import co.cask.cdap.client.NamespaceClient;
 import co.cask.cdap.client.ProgramClient;
+import co.cask.cdap.client.QueryClient;
 import co.cask.cdap.client.app.ConfigTestApp;
 import co.cask.cdap.client.app.FakeApp;
 import co.cask.cdap.client.app.FakeDataset;
@@ -30,6 +32,7 @@ import co.cask.cdap.client.app.FakeSpark;
 import co.cask.cdap.client.app.FakeWorkflow;
 import co.cask.cdap.client.app.PingService;
 import co.cask.cdap.client.app.PrefixedEchoHandler;
+import co.cask.cdap.client.config.ClientConfig;
 import co.cask.cdap.common.DatasetTypeNotFoundException;
 import co.cask.cdap.common.ProgramNotFoundException;
 import co.cask.cdap.common.UnauthenticatedException;
@@ -41,6 +44,7 @@ import co.cask.cdap.proto.NamespaceMeta;
 import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.StreamProperties;
 import co.cask.cdap.proto.WorkflowTokenDetail;
+import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.test.XSlowTests;
 import co.cask.common.cli.CLI;
 import com.google.common.base.Charsets;
@@ -62,6 +66,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,6 +91,9 @@ public class CLIMainTest extends CLITestBase {
   @ClassRule
   public static final StandaloneTester STANDALONE = new StandaloneTester();
 
+  @ClassRule
+  public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
   private static final Logger LOG = LoggerFactory.getLogger(CLIMainTest.class);
   private static final Gson GSON = new Gson();
   private static final String PREFIX = "123ff1_";
@@ -101,12 +109,14 @@ public class CLIMainTest extends CLITestBase {
   private final Id.Stream fakeStreamId = Id.Stream.from(Id.Namespace.DEFAULT, FakeApp.STREAM_NAME);
 
   private static ProgramClient programClient;
+  private static ClientConfig clientConfig;
   private static CLIConfig cliConfig;
   private static CLIMain cliMain;
   private static CLI cli;
 
   @BeforeClass
   public static void setUpClass() throws Exception {
+    clientConfig = createClientConfig(STANDALONE.getBaseURI());
     cliConfig = createCLIConfig(STANDALONE.getBaseURI());
     LaunchOptions launchOptions = new LaunchOptions(LaunchOptions.DEFAULT.getUri(), true, true, false);
     cliMain = new CLIMain(launchOptions, cliConfig);
@@ -450,8 +460,17 @@ public class CLIMainTest extends CLITestBase {
   public void testNamespaces() throws Exception {
     final String name = PREFIX + "testNamespace";
     final String description = "testDescription";
+    final String keytab = "keytab";
+    final String principal = "principal";
+    final String hbaseNamespace = "hbase";
+    final String hiveDatabase = "hiveDB";
+    final String schedulerQueueName = "queue";
+    File rootdir = TEMPORARY_FOLDER.newFolder("rootdir");
+    final String rootDirectory = rootdir.getAbsolutePath();
     final String defaultFields = PREFIX + "defaultFields";
     final String doesNotExist = "doesNotExist";
+    new QueryClient(clientConfig).execute(NamespaceId.DEFAULT.toId(),
+                                          String.format("create database %s", hiveDatabase));
 
     // initially only default namespace should be present
     NamespaceMeta defaultNs = new NamespaceMeta.Builder()
@@ -468,11 +487,16 @@ public class CLIMainTest extends CLITestBase {
 //                              String.format("Error: namespace '%s' was not found", doesNotExist));
 
     // create a namespace
-    String command = String.format("create namespace %s %s", name, description);
+    String command = String.format("create namespace %s description %s principal %s keytab-URI %s " +
+                                     "hbase-namespace %s hive-database %s root-directory %s scheduler-queue-name %s",
+                                   name, description, principal, keytab, hbaseNamespace,
+                                   hiveDatabase, rootDirectory, schedulerQueueName);
     testCommandOutputContains(cli, command, String.format("Namespace '%s' created successfully.", name));
 
     NamespaceMeta expected = new NamespaceMeta.Builder()
-      .setName(name).setDescription(description).build();
+      .setName(name).setDescription(description).setPrincipal(principal).setKeytabURI(keytab)
+      .setHBaseNamespace(hbaseNamespace).setSchedulerQueueName(schedulerQueueName)
+      .setHiveDatabase(hiveDatabase).setRootDirectory(rootDirectory).build();
     expectedNamespaces = Lists.newArrayList(defaultNs, expected);
     // list namespaces and verify
     testNamespacesOutput(cli, "list namespaces", expectedNamespaces);
@@ -666,11 +690,12 @@ public class CLIMainTest extends CLITestBase {
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     PrintStream output = new PrintStream(outputStream);
     Table table = Table.builder()
-      .setHeader("name", "description")
+      .setHeader("name", "description", "config")
       .setRows(expected, new RowMaker<NamespaceMeta>() {
         @Override
         public List<?> makeRow(NamespaceMeta object) {
-          return Lists.newArrayList(object.getName(), object.getDescription());
+          return Lists.newArrayList(object.getName(), object.getDescription(),
+                                    NamespaceCommandUtils.prettyPrintNamespaceConfigCLI(object.getConfig()));
         }
       }).build();
     cliMain.getTableRenderer().render(cliConfig, output, table);

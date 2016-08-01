@@ -40,11 +40,15 @@ public class CLITestBase {
   @ClassRule
   public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
-  protected static CLIConfig createCLIConfig(URI standaloneUri) throws Exception {
+  protected static ClientConfig createClientConfig(URI standaloneUri) {
     ConnectionConfig connectionConfig = InstanceURIParser.DEFAULT.parse(standaloneUri.toString());
     ClientConfig clientConfig = new ClientConfig.Builder().setConnectionConfig(connectionConfig).build();
     clientConfig.setAllTimeouts(60000);
-    return new CLIConfig(clientConfig, System.out, new CsvTableRenderer());
+    return clientConfig;
+  }
+
+  protected static CLIConfig createCLIConfig(URI standaloneUri) throws Exception {
+    return new CLIConfig(createClientConfig(standaloneUri), System.out, new CsvTableRenderer());
   }
 
   protected static void testCommandOutputContains(CLI cli, String command,
