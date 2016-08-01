@@ -110,6 +110,7 @@ public class MetadataAdminAuthorizationTest {
     LocationFactory locationFactory = new LocalLocationFactory(new File(TEMPORARY_FOLDER.newFolder().toURI()));
     Location authorizerJar = AppJarHelper.createDeploymentJar(locationFactory, InMemoryAuthorizer.class);
     cConf.set(Constants.Security.Authorization.EXTENSION_JAR_PATH, authorizerJar.toURI().getPath());
+    cConf.set(Constants.Security.Authorization.SUPERUSERS, "hulk");
     return cConf;
   }
 }
