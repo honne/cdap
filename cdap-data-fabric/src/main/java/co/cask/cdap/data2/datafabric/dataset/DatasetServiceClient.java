@@ -370,7 +370,7 @@ class DatasetServiceClient {
   }
 
   private String resolve(String resource) throws DatasetManagementException {
-    Discoverable discoverable = endpointStrategySupplier.get().pick(5, TimeUnit.SECONDS);
+    Discoverable discoverable = endpointStrategySupplier.get().pick(3, TimeUnit.SECONDS);
     if (discoverable == null) {
       throw new ServiceUnavailableException("DatasetService");
     }
