@@ -154,6 +154,13 @@ abstract class AbstractStorageProviderNamespaceAdmin implements StorageProviderN
         customNamespacedLocation.toString(), namespaceMeta.getNamespaceId(),
         namespaceMeta.getConfig().getPrincipal()));
     }
+    if (!customNamespacedLocation.isDirectory()) {
+      throw new IOException(String.format(
+        "The provided home directory '%s' for namespace '%s' is not a directory. Please specify a directory for the " +
+          "namespace with sufficient privileges for the user %s and then try creating a namespace.",
+        customNamespacedLocation.toString(), namespaceMeta.getNamespaceId(),
+        namespaceMeta.getConfig().getPrincipal()));
+    }
     // we also expect it to empty since non-empty directories can lead to various inconsistencies CDAP-6743
     if (!customNamespacedLocation.list().isEmpty()) {
       throw new IOException(String.format(

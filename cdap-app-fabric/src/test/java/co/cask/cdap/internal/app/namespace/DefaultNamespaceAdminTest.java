@@ -20,6 +20,7 @@ import co.cask.cdap.common.BadRequestException;
 import co.cask.cdap.common.NamespaceAlreadyExistsException;
 import co.cask.cdap.common.NamespaceNotFoundException;
 import co.cask.cdap.common.NotFoundException;
+import co.cask.cdap.common.io.Locations;
 import co.cask.cdap.common.namespace.NamespaceAdmin;
 import co.cask.cdap.common.namespace.NamespacedLocationFactory;
 import co.cask.cdap.internal.app.services.http.AppFabricTestBase;
@@ -165,6 +166,7 @@ public class DefaultNamespaceAdminTest extends AppFabricTestBase {
 
     //clean up
     namespaceAdmin.delete(namespaceId);
+    Locations.deleteQuietly(customlocation);
   }
 
   @Test
@@ -202,7 +204,7 @@ public class DefaultNamespaceAdminTest extends AppFabricTestBase {
     throws Exception {
     try {
       namespaceAdmin.create(namespaceMeta);
-      Assert.fail(String.format("Namespace '%s' should not have been creaated", namespaceMeta.getName()));
+      Assert.fail(String.format("Namespace '%s' should not have been created", namespaceMeta.getName()));
     } catch (NamespaceAlreadyExistsException e) {
       Assert.assertEquals(existingNamespace, e.getId());
     }

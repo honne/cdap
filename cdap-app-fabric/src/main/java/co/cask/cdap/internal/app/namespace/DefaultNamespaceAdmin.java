@@ -194,7 +194,7 @@ public final class DefaultNamespaceAdmin extends DefaultNamespaceQueryAdmin impl
       }
       if (!Strings.isNullOrEmpty(metadata.getConfig().getRootDirectory())) {
         // check that the given root directory path is an absolute path
-        hasAbsolutePath(metadata);
+        validatePath(metadata);
         if (isSubdir(existingConfig.getRootDirectory(), metadata.getConfig().getRootDirectory())) {
           throw new NamespaceAlreadyExistsException(existingNamespaceMeta.getNamespaceId().toId(),
                                                     String.format("A namespace '%s' already exists with the given " +
@@ -216,7 +216,7 @@ public final class DefaultNamespaceAdmin extends DefaultNamespaceQueryAdmin impl
       Strings.isNullOrEmpty(config.getHiveDatabase()));
   }
 
-  private void hasAbsolutePath(NamespaceMeta namespaceMeta) throws IOException {
+  private void validatePath(NamespaceMeta namespaceMeta) throws IOException {
     // a custom location was provided
     // check that its an absolute path
     File customLocation = new File(namespaceMeta.getConfig().getRootDirectory());
