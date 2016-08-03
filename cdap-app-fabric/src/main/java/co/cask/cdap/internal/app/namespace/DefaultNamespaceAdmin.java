@@ -154,6 +154,10 @@ public final class DefaultNamespaceAdmin extends DefaultNamespaceQueryAdmin impl
       authorizer.grant(namespace, principal, ImmutableSet.of(Action.ALL));
     }
 
+    // store the meta first in the namespace store because namespacedlocationfactory need to look up location
+    // mapping from namespace config
+    nsStore.create(metadata);
+
     try {
       impersonator.doAs(metadata, new Callable<Void>() {
         @Override
@@ -163,12 +167,13 @@ public final class DefaultNamespaceAdmin extends DefaultNamespaceQueryAdmin impl
         }
       });
     } catch (IOException | ExploreException | SQLException e) {
+      // failed to create namespace in underlying storage so delete the namespace meta stored in the store earlier
+      nsStore.delete(metadata.getNamespaceId().toId());
       if (!(Principal.SYSTEM.equals(principal) && NamespaceId.DEFAULT.equals(namespace))) {
         authorizer.revoke(namespace);
       }
       throw new NamespaceCannotBeCreatedException(namespace.toId(), e);
     }
-    nsStore.create(metadata);
   }
 
   private void validateCustomMapping(NamespaceMeta metadata) throws Exception {
