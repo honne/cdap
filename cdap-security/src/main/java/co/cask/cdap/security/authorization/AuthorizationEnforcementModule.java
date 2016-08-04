@@ -35,7 +35,6 @@ import java.util.Set;
  */
 public class AuthorizationEnforcementModule extends RuntimeModule {
   public static final String PRIVILEGES_FETCHER_PROXY_CACHE = "privileges-fetcher-proxy-cache";
-  public static final String PRIVILEGES_FETCHER_PROXY_CLIENT = "privileges-fetcher-proxy-client";
 
   @Override
   public Module getInMemoryModules() {
@@ -71,9 +70,6 @@ public class AuthorizationEnforcementModule extends RuntimeModule {
         bind(PrivilegesFetcher.class)
           .annotatedWith(Names.named(PRIVILEGES_FETCHER_PROXY_CACHE))
           .to(PrivilegesFetcherProxyService.class);
-        bind(PrivilegesFetcher.class)
-          .annotatedWith(Names.named(PRIVILEGES_FETCHER_PROXY_CLIENT))
-          .to(PrivilegesFetcherProxyClient.class);
       }
     };
   }
@@ -152,11 +148,6 @@ public class AuthorizationEnforcementModule extends RuntimeModule {
         bind(PrivilegesFetcher.class)
           .annotatedWith(Names.named(PRIVILEGES_FETCHER_PROXY_CACHE))
           .to(PrivilegesFetcherProxyService.class);
-        // The PrivilegesFetcherProxyService itself uses a PrivilegesFetcher that proxies requests to master to
-        // refresh cached privileges periodically.
-        bind(PrivilegesFetcher.class)
-          .annotatedWith(Names.named(PRIVILEGES_FETCHER_PROXY_CLIENT))
-          .to(PrivilegesFetcherProxyClient.class);
       }
     };
   }

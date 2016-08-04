@@ -21,11 +21,10 @@ import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.proto.security.Privilege;
-import co.cask.cdap.security.spi.authorization.PrivilegesFetcher;
+import co.cask.cdap.security.spi.authorization.Authorizer;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.google.inject.name.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +34,7 @@ import java.util.Set;
 /**
  * Default implementation of {@link PrivilegesFetcherProxyService}. It maintains a cache of privileges fetched from
  * the master so every request for privileges does not have to go through the master. The cache is updated periodically
- * using {@link PrivilegesFetcherProxyClient}.
+ * using {@link Authorizer}.
  */
 @Singleton
 public class DefaultPrivilegesFetcherProxyService extends AbstractAuthorizationService
@@ -43,10 +42,8 @@ public class DefaultPrivilegesFetcherProxyService extends AbstractAuthorizationS
   private static final Logger LOG = LoggerFactory.getLogger(DefaultPrivilegesFetcherProxyService.class);
 
   @Inject
-  DefaultPrivilegesFetcherProxyService(
-    @Named(AuthorizationEnforcementModule.PRIVILEGES_FETCHER_PROXY_CLIENT) PrivilegesFetcher privilegeFetcher,
-    CConfiguration cConf) {
-    super(privilegeFetcher, cConf, "privileges-fetcher-proxy");
+  DefaultPrivilegesFetcherProxyService(AuthorizerInstantiator authorizerInstantiator, CConfiguration cConf) {
+    super(authorizerInstantiator.get(), cConf, "privileges-fetcher-proxy");
   }
 
   @Override
