@@ -28,7 +28,7 @@ function LogViewerController ($scope, LogViewerStore, myLogsApi, LOGVIEWERSTORE_
   this.setProgramMetadata = (status) => {
     this.programStatus = status;
 
-    if(this.entityName && this.entityName.length === 0) {
+    if(this.entityName) {
       this.entityName = this.programId;
     }
 
@@ -113,7 +113,7 @@ function LogViewerController ($scope, LogViewerStore, myLogsApi, LOGVIEWERSTORE_
       modalDataSrc.request({
         _cdapNsPath: `/apps/${rAppId}/${rProgramType}/${rProgramId}/runs/${rRunId}/logs?start=${rStartTimeSec}`
       }).then((res) => {
-        if(res === undefined || res.length === 0){
+        if(typeof res === 'undefined' || res.length === 0){
           this.noRawData = true;
         } else {
           this.rawDataResponse = res;
