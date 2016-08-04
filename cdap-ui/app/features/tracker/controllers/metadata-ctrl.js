@@ -31,7 +31,6 @@ class TrackerMetadataController {
     this.myTrackerApi = myTrackerApi;
     this.$scope = $scope;
     this.myAlertOnValium = myAlertOnValium;
-    this.newTag = '';
     this.$timeout = $timeout;
 
     this.propertyInput = {
@@ -233,6 +232,8 @@ class TrackerMetadataController {
         };
         this.tags.preferredTags = getTags(response.preferredTags);
         this.tags.userTags = getTags(response.userTags);
+
+        this.updateAvailableTags();
       }, (err) => {
         console.log('Error', err);
       });
@@ -285,9 +286,9 @@ class TrackerMetadataController {
     return this.tags.availableTags;
   }
 
-  addTag() {
+  addTag(tag) {
     this.invalidFormat = false;
-    if (!this.newTag) {
+    if (!tag) {
       return;
     }
     let addParams = {
@@ -297,13 +298,10 @@ class TrackerMetadataController {
       scope: this.$scope
     };
 
-    this.myTrackerApi.addEntityTag(addParams, [this.newTag])
+    this.myTrackerApi.addEntityTag(addParams, [tag])
       .$promise
       .then(() => {
-        this.fetchEntityTags()
-          .then(this.updateAvailableTags.bind(this));
-        this.newTag = '';
-
+        this.fetchEntityTags();
       }, (err) => {
         if (err.statusCode === 500) {
           this.invalidFormat = true;
@@ -349,7 +347,6 @@ class TrackerMetadataController {
   }
 
   escapeInput() {
-    this.newTag = '';
     this.invalidFormat = false;
     this.inputOpen = false;
     document.body.removeEventListener('click', this.eventFunction, false);

@@ -72,11 +72,10 @@
           <div class="tag-input"
               ng-if="MetadataController.inputOpen"
               ng-class="{'invalid': MetadataController.invalidFormat}">
-            <div my-escape-close="MetadataController.escapeInput()"
-                ng-keypress="$event.keyCode === 13 && MetadataController.addTag()">
+            <div my-escape-close="MetadataController.escapeInput()">
               <my-typeahead-tracker-tags
                 list="MetadataController.tags.availableTags"
-                model="MetadataController.newTag"
+                on-select="MetadataController.addTag(tag)"
                 on-change="MetadataController.invalidFormat = false">
               </my-typeahead-tracker-tags>
             </div>
