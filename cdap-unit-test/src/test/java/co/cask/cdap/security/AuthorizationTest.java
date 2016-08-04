@@ -18,13 +18,9 @@ package co.cask.cdap.security;
 
 import co.cask.cdap.AllProgramsApp;
 import co.cask.cdap.ConfigTestApp;
-<<<<<<< d9b5ba5589536b647c1d672642d7c62158042df3
 import co.cask.cdap.api.common.Bytes;
 import co.cask.cdap.api.dataset.lib.KeyValueTable;
 import co.cask.cdap.common.BadRequestException;
-=======
-import co.cask.cdap.api.dataset.lib.KeyValueTable;
->>>>>>> CDAP-6339 Add one unit test for cross namespace dataset access with authorization
 import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.namespace.NamespaceAdmin;
 import co.cask.cdap.common.utils.Tasks;
@@ -49,6 +45,7 @@ import co.cask.cdap.security.authorization.InMemoryAuthorizer;
 import co.cask.cdap.security.spi.authentication.SecurityRequestContext;
 import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
+import co.cask.cdap.spark.stream.TestSparkCrossNSDatasetApp;
 import co.cask.cdap.test.ApplicationManager;
 import co.cask.cdap.test.ArtifactManager;
 import co.cask.cdap.test.DataSetManager;
@@ -62,6 +59,7 @@ import co.cask.cdap.test.TestBase;
 import co.cask.cdap.test.TestConfiguration;
 import co.cask.cdap.test.WorkerManager;
 import co.cask.cdap.test.app.CrossNsDatasetAccessApp;
+import co.cask.cdap.test.app.DatasetCrossNSAccessWithMAPApp;
 import co.cask.cdap.test.app.DummyApp;
 import co.cask.cdap.test.app.StreamAuthApp;
 import co.cask.cdap.test.artifacts.plugins.ToStringPlugin;
@@ -846,7 +844,7 @@ public class AuthorizationTest extends TestBase {
   }
 
   @Test
-  public void testCrossNSDatasetAccessWithAuth() throws Exception {
+  public void testCrossNSDatasetAccessWithAuthFlowlet() throws Exception {
     createAuthNamespace();
     getNamespaceAdmin().create(new NamespaceMeta.Builder()
                                  .setName(CrossNsDatasetAccessApp.DATASET_OUTPUT_SPACE).build());
@@ -888,6 +886,86 @@ public class AuthorizationTest extends TestBase {
 
     flowManager.stop();
     getNamespaceAdmin().delete(datasetOutputSpace.toId());
+  }
+
+  @Test
+  public void testCrossNSDatasetAccessWithAuthMapReduceSpark() throws Exception {
+    createAuthNamespace();
+    getNamespaceAdmin().create(new NamespaceMeta.Builder()
+                                 .setName(DatasetCrossNSAccessWithMAPApp.DATASET_INPUT_SPACE).build());
+    getNamespaceAdmin().create(new NamespaceMeta.Builder()
+                                 .setName(DatasetCrossNSAccessWithMAPApp.DATASET_OUTPUT_SPACE).build());
+    NamespaceId datasetInputSpace = new NamespaceId(DatasetCrossNSAccessWithMAPApp.DATASET_INPUT_SPACE);
+    NamespaceId datasetOutputSpace = new NamespaceId(DatasetCrossNSAccessWithMAPApp.DATASET_OUTPUT_SPACE);
+
+    addDatasetInstance(datasetInputSpace.toId(), "keyValueTable", "table1").create();
+    addDatasetInstance(datasetOutputSpace.toId(), "keyValueTable", "table2").create();
+    DataSetManager<KeyValueTable> tableManager = getDataset(datasetInputSpace.toId(), "table1");
+    KeyValueTable inputTable = tableManager.get();
+    inputTable.write("hello", "world");
+    tableManager.flush();
+
+    ApplicationManager appManager = deployApplication(AUTH_NAMESPACE.toId(), DatasetCrossNSAccessWithMAPApp.class);
+    Map<String, String> argsForMR = ImmutableMap.of(DatasetCrossNSAccessWithMAPApp.INPUT_KEY, "table1",
+                                                    DatasetCrossNSAccessWithMAPApp.OUTPUT_KEY, "table2");
+    MapReduceManager mrManager = appManager.getMapReduceManager(DatasetCrossNSAccessWithMAPApp.MAPREDUCE_PROGRAM);
+    // Switch to Bob. Should fail as Bob do not have access to the dataset namespace
+    getAuthorizer().grant(AUTH_NAMESPACE, BOB, ImmutableSet.of(Action.ALL));
+    SecurityRequestContext.setUserId(BOB.getName());
+    try {
+      mrManager.start(argsForMR);
+      mrManager.waitForFinish(5, TimeUnit.MINUTES);
+      Assert.fail("Should fail here since bob does not have the privileges on input dataspace.");
+    } catch (Exception e) {
+      // Expected
+    }
+
+    // Switch back to Alice
+    SecurityRequestContext.setUserId(ALICE.getName());
+    mrManager.start(argsForMR);
+    mrManager.waitForFinish(5, TimeUnit.MINUTES);
+    appManager.stopAll();
+    // Verify results
+    DataSetManager<KeyValueTable> outTableManager = getDataset(datasetOutputSpace.toId(), "table2");
+    KeyValueTable outputTable = outTableManager.get();
+    Assert.assertEquals("world", Bytes.toString(outputTable.read("hello")));
+    getNamespaceAdmin().delete(datasetInputSpace.toId());
+    getNamespaceAdmin().delete(datasetOutputSpace.toId());
+  }
+
+  @Test
+  public void testCrossNSDatasetAccessWithAuthSpark() throws Exception {
+    createAuthNamespace();
+    getNamespaceAdmin().create(new NamespaceMeta.Builder()
+                                 .setName(TestSparkCrossNSDatasetApp.SOURCE_DATA_NAMESPACE).build());
+    NamespaceId dataSpace = new NamespaceId(TestSparkCrossNSDatasetApp.SOURCE_DATA_NAMESPACE);
+    addDatasetInstance(dataSpace.toId(), "keyValueTable", "result").create();
+    DataSetManager<KeyValueTable> inTableManager = getDataset(dataSpace.toId(), "result");
+    inTableManager.get().write("hello", "world");
+    inTableManager.flush();
+
+    ApplicationManager spark = deployApplication(AUTH_NAMESPACE.toId(), TestSparkCrossNSDatasetApp.class);
+    SparkManager sparkManager = spark.getSparkManager("SparkStreamProgram");
+
+    // Switch to Bob. Should fail as Bob do not have access to the dataset namespace
+    getAuthorizer().grant(AUTH_NAMESPACE, BOB, ImmutableSet.of(Action.ALL));
+    SecurityRequestContext.setUserId(BOB.getName());
+    try {
+      sparkManager.start();
+      sparkManager.waitForFinish(120, TimeUnit.SECONDS);
+      Assert.fail("Should fail here since bob does not have the privileges on input dataspace.");
+    } catch (Exception e) {
+      // Expected
+    }
+    // Switch back to Alice
+    SecurityRequestContext.setUserId(ALICE.getName());
+    sparkManager.start();
+    sparkManager.waitForFinish(120, TimeUnit.SECONDS);
+    spark.stopAll();
+    // Verify the results written in DEFAULT by spark2
+    DataSetManager<KeyValueTable> datasetManager = getDataset(AUTH_NAMESPACE.toId(), "result");
+    Assert.assertEquals("world", Bytes.toString(datasetManager.get().read("hello")));
+    getNamespaceAdmin().delete(dataSpace.toId());
   }
 
   @After
