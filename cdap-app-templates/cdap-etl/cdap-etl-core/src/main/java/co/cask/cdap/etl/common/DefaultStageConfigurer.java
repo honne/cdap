@@ -70,8 +70,8 @@ public class DefaultStageConfigurer implements StageConfigurer, MultiInputStageC
   public void addInputSchema(String stageType, @Nullable String inputStageName, @Nullable Schema inputSchema) {
     // Do not allow null input schema for Joiner
     if (stageType.equalsIgnoreCase(BatchJoiner.PLUGIN_TYPE) && inputSchema == null) {
-        throw new IllegalArgumentException(String.format("Joiner can not have null input schema for any stage. " +
-                                                           "But for stage %s, input schema is null", inputStageName));
+        throw new IllegalArgumentException(String.format("Joiner cannot have any null input schemas, but stage %s " +
+                                                           "outputs a null schema.", inputStageName));
     }
 
     // Do not allow more than one input schema for stages other than Joiner

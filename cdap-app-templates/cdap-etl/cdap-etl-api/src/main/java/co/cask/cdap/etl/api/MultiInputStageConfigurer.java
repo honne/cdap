@@ -29,11 +29,10 @@ import javax.annotation.Nullable;
 @Beta
 public interface MultiInputStageConfigurer {
   /**
-   * get the input schemas for this stage, or null if its unknown
+   * get the input schemas for this stage, or return empty map if its unknown
    *
    * @return map of input schemas
    */
-  @Nullable
   Map<String, Schema> getInputSchemas();
 
   /**
