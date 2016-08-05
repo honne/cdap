@@ -59,6 +59,8 @@ public final class LoggingContextHelper {
       .put(WorkflowLoggingContext.TAG_WORKFLOW_ID, Constants.Metrics.Tag.WORKFLOW)
       .put(MapReduceLoggingContext.TAG_MAP_REDUCE_JOB_ID, Constants.Metrics.Tag.MAPREDUCE)
       .put(SparkLoggingContext.TAG_SPARK_JOB_ID, Constants.Metrics.Tag.SPARK)
+      .put(WorkflowProgramLoggingContext.TAG_WORKFLOW_MAP_REDUCE_ID, Constants.Metrics.Tag.MAPREDUCE)
+      .put(WorkflowProgramLoggingContext.TAG_WORKFLOW_SPARK_ID, Constants.Metrics.Tag.SPARK)
       .put(UserServiceLoggingContext.TAG_USER_SERVICE_ID, Constants.Metrics.Tag.SERVICE)
       .put(UserServiceLoggingContext.TAG_HANDLER_ID, Constants.Metrics.Tag.HANDLER)
       .put(WorkerLoggingContext.TAG_WORKER_ID, Constants.Metrics.Tag.WORKER)
@@ -115,6 +117,20 @@ public final class LoggingContextHelper {
                                        tags.get(ApplicationLoggingContext.TAG_RUN_ID),
                                        tags.get(ApplicationLoggingContext.TAG_INSTANCE_ID));
     } else if (tags.containsKey(WorkflowLoggingContext.TAG_WORKFLOW_ID)) {
+      if (tags.containsKey(WorkflowProgramLoggingContext.TAG_WORKFLOW_MAP_REDUCE_ID)) {
+        return new WorkflowProgramLoggingContext(namespaceId, applicationId,
+                                                 tags.get(WorkflowLoggingContext.TAG_WORKFLOW_ID),
+                                                 tags.get(ApplicationLoggingContext.TAG_RUN_ID), ProgramType.MAPREDUCE,
+                                                 tags.get(WorkflowProgramLoggingContext.TAG_WORKFLOW_MAP_REDUCE_ID));
+      }
+
+      if (tags.containsKey(WorkflowProgramLoggingContext.TAG_WORKFLOW_SPARK_ID)) {
+        return new WorkflowProgramLoggingContext(namespaceId, applicationId,
+                                                 tags.get(WorkflowLoggingContext.TAG_WORKFLOW_ID),
+                                                 tags.get(ApplicationLoggingContext.TAG_RUN_ID), ProgramType.SPARK,
+                                                 tags.get(WorkflowProgramLoggingContext.TAG_WORKFLOW_SPARK_ID));
+      }
+
       return new WorkflowLoggingContext(namespaceId, applicationId,
                                         tags.get(WorkflowLoggingContext.TAG_WORKFLOW_ID),
                                         tags.get(ApplicationLoggingContext.TAG_RUN_ID));
@@ -282,27 +298,8 @@ public final class LoggingContextHelper {
 
   public static Collection<LoggingContext.SystemTag> getTags(final LoggingContext loggingContext) {
     final List<String> tagNames = new ArrayList<>();
-    if (loggingContext instanceof ApplicationLoggingContext) {
-      tagNames.add(ApplicationLoggingContext.TAG_RUN_ID);
-      tagNames.add(ApplicationLoggingContext.TAG_INSTANCE_ID);
-    }
-
-    if (loggingContext instanceof FlowletLoggingContext) {
-      tagNames.add(FlowletLoggingContext.TAG_FLOW_ID);
-      tagNames.add(FlowletLoggingContext.TAG_FLOWLET_ID);
-    } else if (loggingContext instanceof WorkflowLoggingContext) {
-      tagNames.add(WorkflowLoggingContext.TAG_WORKFLOW_ID);
-    } else if (loggingContext instanceof MapReduceLoggingContext) {
-      tagNames.add(MapReduceLoggingContext.TAG_MAP_REDUCE_JOB_ID);
-    } else if (loggingContext instanceof SparkLoggingContext) {
-      tagNames.add(SparkLoggingContext.TAG_SPARK_JOB_ID);
-    } else if (loggingContext instanceof UserServiceLoggingContext) {
-      tagNames.add(UserServiceLoggingContext.TAG_USER_SERVICE_ID);
-      tagNames.add(UserServiceLoggingContext.TAG_HANDLER_ID);
-    } else if (loggingContext instanceof WorkerLoggingContext) {
-      tagNames.add(WorkerLoggingContext.TAG_WORKER_ID);
-    } else {
-      throw new IllegalArgumentException(String.format("Invalid logging context: %s", loggingContext));
+    for (LoggingContext.SystemTag systemTag : loggingContext.getSystemTags()) {
+      tagNames.add(systemTag.getName());
     }
 
     List<LoggingContext.SystemTag> systemTags = new ArrayList<>();
@@ -348,6 +345,14 @@ public final class LoggingContextHelper {
     // Must be an application
     if (Strings.isNullOrEmpty(applicationId)) {
       throw new IllegalArgumentException("Missing application id");
+    }
+
+    // For Workflows alone, we need to add a tag 'wfr' which corresponds to workflow run id.
+    if (context instanceof WorkflowLoggingContext && (!(context instanceof WorkflowProgramLoggingContext))) {
+      String runId = getValueFromTag(loggingTags.get(ApplicationLoggingContext.TAG_RUN_ID));
+      if (!Strings.isNullOrEmpty(runId)) {
+        builder.put(Constants.Metrics.Tag.WORKFLOW_RUN_ID, runId);
+      }
     }
 
     builder.put(Constants.Metrics.Tag.APP, applicationId);
