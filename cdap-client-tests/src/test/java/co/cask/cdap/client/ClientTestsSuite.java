@@ -45,7 +45,7 @@ import org.junit.runners.Suite;
   ServiceClientTestRun.class,
   StreamClientTestRun.class,
   UsageHandlerTestRun.class,
-  WorkflowClientTestRun.class
+  WorkflowClientTestRun.class,
 })
 public class ClientTestsSuite extends ClientTestBase {
 
