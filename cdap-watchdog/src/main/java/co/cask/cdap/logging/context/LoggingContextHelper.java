@@ -38,9 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -296,33 +294,6 @@ public final class LoggingContextHelper {
     };
   }
 
-  public static Collection<LoggingContext.SystemTag> getTags(final LoggingContext loggingContext) {
-    final List<String> tagNames = new ArrayList<>();
-    for (LoggingContext.SystemTag systemTag : loggingContext.getSystemTags()) {
-      tagNames.add(systemTag.getName());
-    }
-
-    List<LoggingContext.SystemTag> systemTags = new ArrayList<>();
-    for (final String tagName : tagNames) {
-      if (!loggingContext.getSystemTagsMap().containsKey(tagName)) {
-        continue;
-      }
-
-      systemTags.add(new LoggingContext.SystemTag() {
-        @Override
-        public String getName() {
-          return tagName;
-        }
-
-        @Override
-        public String getValue() {
-          return loggingContext.getSystemTagsMap().get(tagName).getValue();
-        }
-      });
-    }
-    return systemTags;
-  }
-
   public static Map<String, String> getMetricsTags(LoggingContext context) throws IllegalArgumentException {
     if (context instanceof ServiceLoggingContext) {
      return getMetricsTagsFromSystemContext((ServiceLoggingContext) context);
@@ -356,7 +327,7 @@ public final class LoggingContextHelper {
     }
 
     builder.put(Constants.Metrics.Tag.APP, applicationId);
-    Collection<LoggingContext.SystemTag> systemTags = getTags(context);
+    Collection<LoggingContext.SystemTag> systemTags = context.getSystemTags();
     for (LoggingContext.SystemTag systemTag : systemTags) {
       String entityName = getMetricsTagNameFromLoggingContext(systemTag);
       if (entityName != null) {
