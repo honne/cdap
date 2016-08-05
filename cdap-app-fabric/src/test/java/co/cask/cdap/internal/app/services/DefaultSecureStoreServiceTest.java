@@ -18,12 +18,12 @@ package co.cask.cdap.internal.app.services;
 
 import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.common.conf.Constants;
+import co.cask.cdap.common.conf.SConfiguration;
 import co.cask.cdap.common.namespace.NamespaceAdmin;
 import co.cask.cdap.common.utils.Tasks;
 import co.cask.cdap.data2.datafabric.dataset.service.DatasetService;
 import co.cask.cdap.data2.datafabric.dataset.service.executor.DatasetOpExecutor;
 import co.cask.cdap.gateway.handlers.meta.RemoteSystemOperationsService;
-import co.cask.cdap.common.conf.SConfiguration;
 import co.cask.cdap.internal.guice.AppFabricTestModule;
 import co.cask.cdap.internal.test.AppJarHelper;
 import co.cask.cdap.proto.Id;
