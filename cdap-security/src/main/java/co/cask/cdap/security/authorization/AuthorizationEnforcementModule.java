@@ -48,7 +48,16 @@ public class AuthorizationEnforcementModule extends RuntimeModule {
           .in(Scopes.SINGLETON);
         // bind AuthorizationEnforcer to AuthorizationEnforcementService
         bind(AuthorizationEnforcer.class).to(AuthorizationEnforcementService.class).in(Scopes.SINGLETON);
+
+        bind(PrivilegesFetcherProxyService.class).to(DefaultPrivilegesFetcherProxyService.class)
+          .in(Scopes.SINGLETON);
         bind(PrivilegesFetcher.class).to(AuthorizerAsPrivilegesFetcher.class).in(Scopes.SINGLETON);
+        bind(PrivilegesFetcher.class)
+          .annotatedWith(Names.named(PRIVILEGES_FETCHER_PROXY_CACHE))
+          .to(PrivilegesFetcherProxyService.class);
+        bind(PrivilegesFetcher.class)
+          .annotatedWith(Names.named(PRIVILEGES_FETCHER_PROXY))
+          .to(AuthorizerAsPrivilegesFetcher.class);
       }
     };
   }
