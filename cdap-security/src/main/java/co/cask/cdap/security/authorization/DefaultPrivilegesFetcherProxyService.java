@@ -22,9 +22,11 @@ import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.security.spi.authorization.Authorizer;
+import co.cask.cdap.security.spi.authorization.PrivilegesFetcher;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,8 +44,10 @@ public class DefaultPrivilegesFetcherProxyService extends AbstractAuthorizationS
   private static final Logger LOG = LoggerFactory.getLogger(DefaultPrivilegesFetcherProxyService.class);
 
   @Inject
-  DefaultPrivilegesFetcherProxyService(AuthorizerInstantiator authorizerInstantiator, CConfiguration cConf) {
-    super(authorizerInstantiator.get(), cConf, "privileges-fetcher-proxy");
+  DefaultPrivilegesFetcherProxyService(
+    @Named(AuthorizationEnforcementModule.PRIVILEGES_FETCHER_PROXY) PrivilegesFetcher privilegeFetcher,
+    CConfiguration cConf) {
+    super(privilegeFetcher, cConf, "privileges-fetcher-proxy");
   }
 
   @Override

@@ -35,6 +35,7 @@ import java.util.Set;
  */
 public class AuthorizationEnforcementModule extends RuntimeModule {
   public static final String PRIVILEGES_FETCHER_PROXY_CACHE = "privileges-fetcher-proxy-cache";
+  public static final String PRIVILEGES_FETCHER_PROXY = "privileges-fetcher-proxy";
 
   @Override
   public Module getInMemoryModules() {
@@ -70,6 +71,9 @@ public class AuthorizationEnforcementModule extends RuntimeModule {
         bind(PrivilegesFetcher.class)
           .annotatedWith(Names.named(PRIVILEGES_FETCHER_PROXY_CACHE))
           .to(PrivilegesFetcherProxyService.class);
+        bind(PrivilegesFetcher.class)
+          .annotatedWith(Names.named(PRIVILEGES_FETCHER_PROXY))
+          .to(AuthorizerAsPrivilegesFetcher.class);
       }
     };
   }
