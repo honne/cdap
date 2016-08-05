@@ -20,6 +20,7 @@ import co.cask.cdap.api.data.format.FormatSpecification;
 import co.cask.cdap.api.data.format.Formats;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.flow.flowlet.StreamEvent;
+import co.cask.cdap.common.NamespaceNotFoundException;
 import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.common.stream.StreamEventTypeAdapter;
 import co.cask.cdap.common.utils.Tasks;
@@ -211,8 +212,8 @@ public class StreamHandlerTest extends GatewayTestBase {
   public void testListStreams() throws Exception {
     List<StreamDetail> specs = listStreams(NamespaceId.DEFAULT);
     Assert.assertTrue(specs.isEmpty());
-    StreamId s1 = new StreamId(NamespaceId.DEFAULT.getNamespace(), "stream1");
-    StreamId s2 = new StreamId(NamespaceId.DEFAULT.getNamespace(), "stream2");
+    StreamId s1 = NamespaceId.DEFAULT.stream("stream1");
+    StreamId s2 = NamespaceId.DEFAULT.stream("stream2");
     createStream(s1.toId());
     specs = listStreams(NamespaceId.DEFAULT);
     Assert.assertEquals(1, specs.size());
@@ -221,6 +222,12 @@ public class StreamHandlerTest extends GatewayTestBase {
     createStream(s2.toId());
     specs = listStreams(NamespaceId.DEFAULT);
     Assert.assertEquals(2, specs.size());
+    try {
+      listStreams(new NamespaceId("notfound"));
+      Assert.fail("Should have thrown NamespaceNotFoundException");
+    } catch (NamespaceNotFoundException ex) {
+      // expected
+    }
   }
 
   @Test
@@ -428,6 +435,9 @@ public class StreamHandlerTest extends GatewayTestBase {
     URL url = createURL(namespaceId.getNamespace(), "streams");
     HttpRequest request = HttpRequest.get(url).build();
     HttpResponse response = HttpRequests.execute(request);
+    if (response.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+      throw new NamespaceNotFoundException(namespaceId.toId());
+    }
     Assert.assertEquals(200, response.getResponseCode());
     return GSON.fromJson(response.getResponseBodyAsString(), new TypeToken<List<StreamDetail>>() { }.getType());
   }

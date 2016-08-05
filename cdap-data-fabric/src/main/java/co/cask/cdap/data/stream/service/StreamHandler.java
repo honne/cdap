@@ -53,7 +53,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -78,6 +77,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -185,9 +185,11 @@ public final class StreamHandler extends AbstractHttpHandler {
   @Path("/")
   public void listStreams(HttpRequest request, HttpResponder responder,
                           @PathParam("namespace-id") String namespaceId) throws Exception {
-    List<StreamSpecification> specificationList = streamAdmin.listStreams(new NamespaceId(namespaceId));
-    List<StreamDetail> streamDetails = Lists.newArrayListWithCapacity(specificationList.size());
-    for (StreamSpecification specification : specificationList) {
+    // Check for namespace existence. Throws NotFoundException if namespace doesn't exist
+    namespaceQueryAdmin.get(new NamespaceId(namespaceId).toId());
+    List<StreamSpecification> specifications = streamAdmin.listStreams(new NamespaceId(namespaceId));
+    List<StreamDetail> streamDetails = new ArrayList<>(specifications.size());
+    for (StreamSpecification specification : specifications) {
       streamDetails.add(new StreamDetail(specification.getName()));
     }
     responder.sendJson(HttpResponseStatus.OK, streamDetails);

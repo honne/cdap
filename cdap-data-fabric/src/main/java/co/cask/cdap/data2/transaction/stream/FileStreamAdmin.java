@@ -65,6 +65,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
@@ -275,9 +277,16 @@ public class FileStreamAdmin implements StreamAdmin {
   }
 
   @Override
-  public List<StreamSpecification> listStreams(NamespaceId namespaceId) throws Exception {
-    ensureAccess(namespaceId);
-    return streamMetaStore.listStreams(namespaceId.toId());
+  public List<StreamSpecification> listStreams(final NamespaceId namespaceId) throws Exception {
+    final Predicate<EntityId> filter = authorizationEnforcer.createFilter(authenticationContext.getPrincipal());
+    List<StreamSpecification> streamSpecifications = streamMetaStore.listStreams(namespaceId.toId());
+    return Lists.newArrayList(Iterables.filter(streamSpecifications,
+                                               new com.google.common.base.Predicate<StreamSpecification>() {
+      @Override
+      public boolean apply(StreamSpecification spec) {
+        return filter.apply(namespaceId.stream(spec.getName()));
+      }
+    }));
   }
 
   @Override
