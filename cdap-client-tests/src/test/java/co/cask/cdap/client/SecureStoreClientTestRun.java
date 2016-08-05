@@ -18,6 +18,9 @@ package co.cask.cdap.client;
 
 import co.cask.cdap.api.security.store.SecureStoreMetadata;
 import co.cask.cdap.client.common.ClientTestBase;
+import co.cask.cdap.common.NamespaceNotFoundException;
+import co.cask.cdap.common.SecureKeyAlreadyExistsException;
+import co.cask.cdap.common.SecureKeyNotFoundException;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.SecureKeyId;
 import co.cask.cdap.proto.security.SecureKeyCreateRequest;
@@ -44,6 +47,55 @@ public class SecureStoreClientTestRun extends ClientTestBase {
   public void setUp() throws Throwable {
     super.setUp();
     client = new SecureStoreClient(clientConfig);
+  }
+
+  @Test
+  public void testErrorScenarios() throws Exception {
+    try {
+      client.listKeys(new NamespaceId("notfound"));
+      Assert.fail("Should have thrown exception since namespace doesn't exist");
+    } catch (NamespaceNotFoundException e) {
+      // expected
+    }
+
+    try {
+      client.deleteKey(new SecureKeyId(NamespaceId.DEFAULT.getNamespace(), "badkey"));
+      Assert.fail("Should have thrown exception since the key doesn't exist");
+    } catch (SecureKeyNotFoundException e) {
+      // expected
+    }
+
+    try {
+      client.getData(new SecureKeyId(NamespaceId.DEFAULT.getNamespace(), "badkey"));
+      Assert.fail("Should have thrown exception since the key doesn't exist");
+    } catch (SecureKeyNotFoundException e) {
+      // expected
+    }
+
+    try {
+      client.getKeyMetadata(new SecureKeyId(NamespaceId.DEFAULT.getNamespace(), "badkey"));
+      Assert.fail("Should have thrown exception since the key doesn't exist");
+    } catch (SecureKeyNotFoundException e) {
+      // expected
+    }
+
+    try {
+      client.getKeyMetadata(new SecureKeyId("notfound", "somekey"));
+      Assert.fail("Should have thrown exception since the namespace doesn't exist");
+    } catch (SecureKeyNotFoundException e) {
+      // expected
+    }
+
+    SecureKeyId id = new SecureKeyId(NamespaceId.DEFAULT.getNamespace(), "key1");
+    SecureKeyCreateRequest request = new SecureKeyCreateRequest("", "a", ImmutableMap.<String, String>of());
+    client.createKey(id, request);
+    try {
+      client.createKey(id, request);
+      Assert.fail("Should have thrown exception since the key already exists");
+    } catch (SecureKeyAlreadyExistsException e) {
+      // expected
+    }
+    client.deleteKey(id);
   }
 
   @Test

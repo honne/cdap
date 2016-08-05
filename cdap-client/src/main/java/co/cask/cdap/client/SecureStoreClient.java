@@ -19,6 +19,10 @@ package co.cask.cdap.client;
 import co.cask.cdap.api.security.store.SecureStoreMetadata;
 import co.cask.cdap.client.config.ClientConfig;
 import co.cask.cdap.client.util.RESTClient;
+import co.cask.cdap.common.AlreadyExistsException;
+import co.cask.cdap.common.NamespaceNotFoundException;
+import co.cask.cdap.common.SecureKeyAlreadyExistsException;
+import co.cask.cdap.common.SecureKeyNotFoundException;
 import co.cask.cdap.common.UnauthenticatedException;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.SecureKeyId;
@@ -32,6 +36,7 @@ import com.google.gson.Gson;
 import com.google.inject.Inject;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.List;
 
@@ -62,11 +67,21 @@ public class SecureStoreClient {
    * @param keyCreateRequest {@link SecureKeyCreateRequest}
    * @throws IOException if a network error occurred
    * @throws UnauthenticatedException if the request is not authorized successfully in the gateway server
+   * @throws SecureKeyAlreadyExistsException if the secure key already exists
+   * @throws NamespaceNotFoundException if namespace is not found
    */
-  public void createKey(SecureKeyId secureKeyId,
-                        SecureKeyCreateRequest keyCreateRequest) throws IOException, UnauthenticatedException {
+  public void createKey(SecureKeyId secureKeyId, SecureKeyCreateRequest keyCreateRequest) throws IOException,
+    UnauthenticatedException, AlreadyExistsException, NamespaceNotFoundException {
     URL url = config.resolveNamespacedURLV3(secureKeyId.getParent().toId(), getSecureKeyPath(secureKeyId));
-    restClient.execute(HttpMethod.PUT, url, GSON.toJson(keyCreateRequest), null, config.getAccessToken());
+    HttpResponse response = restClient.execute(HttpMethod.PUT, url, GSON.toJson(keyCreateRequest), null,
+                                               config.getAccessToken(), HttpURLConnection.HTTP_NOT_FOUND,
+                                               HttpURLConnection.HTTP_CONFLICT);
+    if (response.getResponseCode() == HttpURLConnection.HTTP_CONFLICT) {
+      throw new SecureKeyAlreadyExistsException(secureKeyId);
+    }
+    if (response.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+      throw new NamespaceNotFoundException(secureKeyId.getParent().toId());
+    }
   }
 
   /**
@@ -76,10 +91,16 @@ public class SecureStoreClient {
    * @return the secure data in a utf-8 encoded byte array
    * @throws IOException if a network error occurred
    * @throws UnauthenticatedException if the request is not authorized successfully in the gateway server
+   * @throws SecureKeyNotFoundException if secure key or the namespace is not found
    */
-  public String getData(SecureKeyId secureKeyId) throws IOException, UnauthenticatedException {
+  public String getData(SecureKeyId secureKeyId) throws IOException, UnauthenticatedException,
+    SecureKeyNotFoundException {
     URL url = config.resolveNamespacedURLV3(secureKeyId.getParent().toId(), getSecureKeyPath(secureKeyId));
-    HttpResponse response = restClient.execute(HttpMethod.GET, url, config.getAccessToken());
+    HttpResponse response = restClient.execute(HttpMethod.GET, url, config.getAccessToken(),
+                                               HttpURLConnection.HTTP_NOT_FOUND);
+    if (response.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+      throw new SecureKeyNotFoundException(secureKeyId);
+    }
     return response.getResponseBodyAsString();
   }
 
@@ -90,11 +111,17 @@ public class SecureStoreClient {
    * @return {@link SecureStoreMetadata} metadata associated with the key
    * @throws IOException if a network error occurred
    * @throws UnauthenticatedException if the request is not authorized successfully in the gateway server
+   * @throws SecureKeyNotFoundException if secure key or the namespace is not found
    */
-  public SecureStoreMetadata getKeyMetadata(SecureKeyId secureKeyId) throws IOException, UnauthenticatedException {
+  public SecureStoreMetadata getKeyMetadata(SecureKeyId secureKeyId) throws IOException, UnauthenticatedException,
+    SecureKeyNotFoundException {
     URL url = config.resolveNamespacedURLV3(secureKeyId.getParent().toId(),
                                             String.format("%s/metadata", getSecureKeyPath(secureKeyId)));
-    HttpResponse response = restClient.execute(HttpMethod.GET, url, config.getAccessToken());
+    HttpResponse response = restClient.execute(HttpMethod.GET, url, config.getAccessToken(),
+                                               HttpURLConnection.HTTP_NOT_FOUND);
+    if (response.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+      throw new SecureKeyNotFoundException(secureKeyId);
+    }
     return GSON.fromJson(response.getResponseBodyAsString(), SecureStoreMetadata.class);
   }
 
@@ -103,10 +130,16 @@ public class SecureStoreClient {
    * @param secureKeyId {@link SecureKeyId} secure key name
    * @throws IOException if a network error occurred
    * @throws UnauthenticatedException if the request is not authorized successfully in the gateway server
+   * @throws SecureKeyNotFoundException if secure key or the namespace is not found
    */
-  public void deleteKey(SecureKeyId secureKeyId) throws IOException, UnauthenticatedException {
+  public void deleteKey(SecureKeyId secureKeyId) throws IOException, UnauthenticatedException,
+    SecureKeyNotFoundException {
     URL url = config.resolveNamespacedURLV3(secureKeyId.getParent().toId(), getSecureKeyPath(secureKeyId));
-    restClient.execute(HttpMethod.DELETE, url, config.getAccessToken());
+    HttpResponse response = restClient.execute(HttpMethod.DELETE, url, config.getAccessToken(),
+                                               HttpURLConnection.HTTP_NOT_FOUND);
+    if (response.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+      throw new SecureKeyNotFoundException(secureKeyId);
+    }
   }
 
   /**
@@ -115,10 +148,16 @@ public class SecureStoreClient {
    * @return list of {@link SecureKeyListEntry}s
    * @throws IOException if a network error occurred
    * @throws UnauthenticatedException if the request is not authorized successfully in the gateway server
+   * @throws NamespaceNotFoundException if the given namespace is not found
    */
-  public List<SecureKeyListEntry> listKeys(NamespaceId namespaceId) throws IOException, UnauthenticatedException {
+  public List<SecureKeyListEntry> listKeys(NamespaceId namespaceId) throws IOException, UnauthenticatedException,
+    NamespaceNotFoundException {
     URL url = config.resolveNamespacedURLV3(namespaceId.toId(), SECURE_KEYS);
-    HttpResponse response = restClient.execute(HttpMethod.GET, url, config.getAccessToken());
+    HttpResponse response = restClient.execute(HttpMethod.GET, url, config.getAccessToken(),
+                                               HttpURLConnection.HTTP_NOT_FOUND);
+    if (response.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+      throw new NamespaceNotFoundException(namespaceId.toId());
+    }
     return ObjectResponse.fromJsonBody(response, new TypeToken<List<SecureKeyListEntry>>() { }).getResponseObject();
   }
 
